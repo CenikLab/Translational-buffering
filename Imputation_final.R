@@ -87,9 +87,9 @@ colSums(new_table_cpm)
 threshold <- 0.2 * ncol(new_table_cpm)
 
 
-# Identify rows where more than 80% of the columns have values below 1, rowsums of logical vector (TRue=1) and False=0, TRUE if it more80% samples for each gene is cpm <1
+# Identify rows where more than 20% of the columns have values below 1, rowsums of logical vector (TRue=1) and False=0, TRUE if it more80% samples for each gene is cpm <1
 rows_result <- rowSums(new_table_cpm < 1) > threshold
-sum(rows_result) #around 10830 genes have  genes who has cpm <1 for 80% samples in both RNA and Ribo togther
+sum(rows_result) #around 10830 genes have  genes who has cpm <1 for 20% samples in both RNA and Ribo togther
 # add gene names
 names(rows_result)=ribo_count_clean$X
 
