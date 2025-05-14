@@ -21,7 +21,7 @@ library(foreach)
 library(doParallel)
 
 
-# idea is introduec new imputaion method
+
 # these counts are after winsorization
 ribo_count= read.csv("C:/Users/sjr2797/Box/Cenik lab_Shilpa/FUS/FUS_2023/Imputation methods/ribo_raw_human_cap_995.csv")
 rnaseq_count= read.csv("C:/Users/sjr2797/Box/Cenik lab_Shilpa/FUS/FUS_2023/Imputation methods/rnaseq_raw_human_cap_995.csv")
