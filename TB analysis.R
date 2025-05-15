@@ -27,11 +27,11 @@ library(doParallel)
 
 # table 
 # to find correlation convert 
+setwd("C:/Users/sjr2797/Box/Cenik lab_Shilpa/FUS/FUS_2023/Imputation methods")
 
-
-RNA_clr=read.csv("C:/Users/sjr2797/Box/Cenik lab_Shilpa/FUS/FUS_2023/Imputation methods/RNA_clr.csv")
-Ribo_clr=read.csv("C:/Users/sjr2797/Box/Cenik lab_Shilpa/FUS/FUS_2023/Imputation methods/Ribo_clr.csv")
-TE_GBM_clr=read.csv("C:/Users/sjr2797/Box/Cenik lab_Shilpa/FUS/FUS_2023/Imputation methods/TE_GBM_clr.csv")
+RNA_clr=read.csv("./RNA_clr.csv")
+Ribo_clr=read.csv("./Ribo_clr.csv")
+TE_GBM_clr=read.csv("./TE_GBM_clr.csv")
 dim(RNA_clr)
 dim(Ribo_clr)
 dim(TE_GBM_clr)
@@ -231,7 +231,7 @@ FUS_RNA_TE_nond = data.table(as.numeric(FUS_RNA_nond[,2:ncol(FUS_TE_nond)]), as.
 
 colnames(FUS_RNA_TE_nond) = c("FUS_RNA_nond", "FUS_TE_nond")
 
-cell_line_info= read.csv("C:/Users/sjr2797/Box/Cenik lab_Shilpa/FUS/Buffering MS/infor_filter.csv", header = TRUE)
+cell_line_info= read.csv("./infor_filter.csv", header = TRUE)
 dim(cell_line_info)
 head(cell_line_info, 5)
 
@@ -299,7 +299,7 @@ G6PD_cor_nond
 G6PD_RNA_TE_nond = data.table(as.numeric(G6PD_RNA_nond[,2:ncol(G6PD_TE_nond)]), as.numeric(G6PD_TE_nond[,2:ncol(G6PD_TE_nond)]))
 
 colnames(G6PD_RNA_TE_nond) = c("G6PD_RNA_nond", "G6PD_TE_nond")
-cell_line_info= read.csv("C:/Users/sjr2797/Box/Cenik lab_Shilpa/FUS/Buffering MS/infor_filter.csv", header = TRUE)
+cell_line_info= read.csv("./infor_filter.csv", header = TRUE)
 dim(cell_line_info)
 head(cell_line_info, 5)
 
@@ -488,7 +488,7 @@ JUNB_RNA_Ribo_nond_plot
 
 
 #2 C. human sequence
-human_stat=read.table("C:/Users/sjr2797/Box/Cenik lab_Shilpa/FUS/Buffering MS/human_stats.txt", header = TRUE)
+human_stat=read.table("./human_stats.txt", header = TRUE)
 dim(human_stat)
 human_stat=as.data.table(human_stat)
 # there are many duplicates so collapse to one.
@@ -843,7 +843,7 @@ RNA_MAD_human
 #codon bias
 
 # clean the FASTA sequnce
-fasta_sequences <- readDNAStringSet("C:/Users/sjr2797/Box/Cenik lab_Shilpa/FUS/FUS_2023/non deduplicated data/final_TE_8_2_23/CDS_human.fa")
+fasta_sequences <- readDNAStringSet("./CDS_human.fa")
 fasta_sequences
 #calculate teh freequncy of each codon in each gene
 cf_all <- count_codons(fasta_sequences)
@@ -931,7 +931,7 @@ cai_buf_ran_long_plot
 
 # # Find if there is any association with CSC and buffering.  
 #make a plot of the codon stabilization score (CSC) *** the Pearson correlation coefficient between mRNA stability and codon occurrence.
-CSC_table= read.csv("C:/Users/sjr2797/Box/Cenik lab_Shilpa/FUS/FUS_2023/non deduplicated data/final_TE_8_2_23/elife-45396-fig1-data2-v2.csv")
+CSC_table= read.csv("./elife-45396-fig1-data2-v2.csv")
 
 head(CSC_table)
 # we need to plot between the CSC and the number of each codon. Since each gene will be of differnt length
@@ -1094,11 +1094,11 @@ cor.test(cf_freq_all$Random_nonBuffered_diff, cf_freq_all$X293T_endo, method= "p
 
 #MAD for proteomics
 
-RNA_cancer_cell= read.csv("C:/Users/sjr2797/Box/Cenik lab_Shilpa/FUS/Buffering MS/rnaseq_fpkm_20220624.csv", header = TRUE)
+RNA_cancer_cell= read.csv("./rnaseq_fpkm_20220624.csv", header = TRUE)
 dim(RNA_cancer_cell)
 RNA_cancer_cell=as.data.table(RNA_cancer_cell)
 RNA_cancer_cell[100:115,1:5]
-Protein_cancer_cell= read_excel("C:/Users/sjr2797/Box/Cenik lab_Shilpa/FUS/Buffering MS/1-s2.0-S1535610822002744-mmc3 (1).xlsx", sheet=1, skip=1)
+Protein_cancer_cell= read_excel("./1-s2.0-S1535610822002744-mmc3 (1).xlsx", sheet=1, skip=1)
 dim(Protein_cancer_cell)
 Protein_cancer_cell=as.data.table(Protein_cancer_cell)
 Protein_cancer_cell[1:5,1:5]
@@ -1114,7 +1114,7 @@ extracted_part
 
 
 # from the uniport get all gene names
-UniportID= read.csv("C:/Users/sjr2797/Box/Cenik lab_Shilpa/FUS/Buffering MS/idmapping_2024_03_25.csv", header = TRUE)
+UniportID= read.csv("./idmapping_2024_03_25.csv", header = TRUE)
 
 head(UniportID)
 #considering the first is the gene name, extract along with Entry.name. replace SOX21_human with SOX2
@@ -1346,10 +1346,10 @@ significance_data
 
 
 ##cell_2020_tissue (for all genes: no matching)
-Cell_2020_protein =  read_excel("C:/Users/sjr2797/Box/Cenik lab_Shilpa/FUS/Buffering MS/mmc3.xlsx", sheet=7, skip=1)
+Cell_2020_protein =  read_excel("./mmc3.xlsx", sheet=7, skip=1)
 Cell_2020_protein[1:5,1:5]
 dim(Cell_2020_protein)
-GeneName_cell2020= read.csv("C:/Users/sjr2797/Box/Cenik lab_Shilpa/FUS/Buffering MS/Gene_name_Cell_2020.csv")
+GeneName_cell2020= read.csv("./Gene_name_Cell_2020.csv")
 GeneName_cell2020= as.data.table(GeneName_cell2020)
 GeneName_cell2020
 dim(GeneName_cell2020)
@@ -1411,7 +1411,7 @@ mad_values_Cell_2020 <- na.omit(mad_values_Cell_2020)
 sum(is.na(mad_values_Cell_2020))
 mad_values_Cell_2020=as.data.table(mad_values_Cell_2020)
 # add MAD vaues from mRNA
-Cell_2020_mRNA =  read_excel("C:/Users/sjr2797/Box/Cenik lab_Shilpa/FUS/FUS_2023/Protein_RNA_ratio/Cell_2020/mmc4.xlsx", sheet=3,skip=1)
+Cell_2020_mRNA =  read_excel("./mmc4.xlsx", sheet=3,skip=1)
 Cell_2020_mRNA[1:5,1:5]
 
 # calculate the MAD for tissue
@@ -1484,7 +1484,7 @@ significance_data
 
 # pLI score
 # Happloinsuffciency
-pLI= read.table("C:/Users/sjr2797/Box/Cenik lab_Shilpa/FUS/Buffering MS/gnomad.v2.1.1.lof_metrics.by_gene.txt", header = TRUE, sep="\t")
+pLI= read.table("./gnomad.v2.1.1.lof_metrics.by_gene.txt", header = TRUE, sep="\t")
 head(pLI)
 colnames(pLI)
 pLI_genes=cbind(pLI$gene, pLI$pLI)
@@ -1538,7 +1538,7 @@ median(subset(pLI_genes, pLI_genes$Buffering=="TB_score=2")$pLI)
 median(subset(pLI_genes, pLI_genes$Buffering=="TB_score=3")$pLI)
 
 # Check the phaplo and ptriplo from 2022 data set
-Collins_2022= read.csv("C:/Users/sjr2797/Box/Cenik lab_Shilpa/FUS/FUS_2023/non deduplicated data/final_TE_8_2_23/1-s2.0-S0092867422007887-mmc7.csv", header= TRUE)
+Collins_2022= read.csv("./1-s2.0-S0092867422007887-mmc7.csv", header= TRUE)
 head(Collins_2022)
 Collins_2022=as.data.table(Collins_2022)
 Collins_2022= Collins_2022 %>%
@@ -1601,8 +1601,8 @@ median(subset(Collins_2022, Collins_2022$Buffering=="TB_score=3")$pTriplo)
 
 
 # analyse  if variation within different cell types exhibits buffering
-Cenik_RNA= read.csv("C:/Users/sjr2797/Box/Cenik lab_Shilpa/FUS/Buffering MS/GSE65912_RNASeq.csv.gz")
-Cenik_Ribo= read.csv("C:/Users/sjr2797/Box/Cenik lab_Shilpa/FUS/Buffering MS/GSE65912_RibosomeProfiling.csv.gz")
+Cenik_RNA= read.csv("./GSE65912_RNASeq.csv.gz")
+Cenik_Ribo= read.csv("./GSE65912_RibosomeProfiling.csv.gz")
 dim(Cenik_RNA)
 Cenik_RNA[1:5, ]
 dim(Cenik_Ribo)
@@ -2621,7 +2621,7 @@ significance_data <- data_matched %>%
 
 
 # half life of buffered genes across sublocations
-Human_Data<- read.csv("C:/Users/sjr2797/Box/Cenik lab_Shilpa/FUS/Buffering MS/Human_Data.csv")
+Human_Data<- read.csv("./Human_Data.csv")
 
 
 #-------------------------------------------------------------------------------------------#----------------------------------------------------------------------------------------------------
@@ -2792,9 +2792,9 @@ ggparcoord(data_matched,
 
 
 #MOUSE
-RNA_clr_mouse=read.csv("C:/Users/sjr2797/Box/Cenik lab_Shilpa/FUS/FUS_2023/Imputation methods/RNA_clr_mouse.csv")
-Ribo_clr_mouse=read.csv("C:/Users/sjr2797/Box/Cenik lab_Shilpa/FUS/FUS_2023/Imputation methods/Ribo_clr_mouse.csv")
-TE_GBM_clr_mouse=read.csv("C:/Users/sjr2797/Box/Cenik lab_Shilpa/FUS/FUS_2023/Imputation methods/TE_GBM_clr_mouse.csv")
+RNA_clr_mouse=read.csv("./RNA_clr_mouse.csv")
+Ribo_clr_mouse=read.csv("./Ribo_clr_mouse.csv")
+TE_GBM_clr_mouse=read.csv("./TE_GBM_clr_mouse.csv")
 dim(RNA_clr_mouse)
 dim(Ribo_clr_mouse)
 dim(TE_GBM_clr_mouse)
@@ -3064,17 +3064,17 @@ Buffering_score=as.data.table(Buffering_score)
 common_buffering126= Buffering_score[Buffering_score$`Human Buffering score`=="TB_score=1" & Buffering_score$`Mouse Buffering score`=="TB_score=1"]
 
 #need to manually assign function. 
-#write.csv(common_buffering126, "C:/Users/sjr2797/Box/Cenik lab_Shilpa/FUS/FUS_2023/Imputation methods/common_buffering126.csv")
+#write.csv(common_buffering126, "./common_buffering126.csv")
 #assign genefunction
 
 
 
-#common_buffering53_function= read.csv("C:/Users/sjr2797/Box/Cenik lab_Shilpa/FUS/Buffering MS/common_buffering53_function.csv", header = FALSE)
+#common_buffering53_function= read.csv("./common_buffering53_function.csv", header = FALSE)
 #common_buffering53_function
 #merge the columns 
 #merged_126= merge(common_buffering53_function, common_buffering126, by.x= "V1", by.y= "transcript", all =TRUE )
-#write.csv(merged_126, "C:/Users/sjr2797/Box/Cenik lab_Shilpa/FUS/FUS_2023/Imputation methods/merged_126.csv")
-merged_126= read.csv("C:/Users/sjr2797/Box/Cenik lab_Shilpa/FUS/FUS_2023/Imputation methods/merged_126.csv")
+#write.csv(merged_126, "./merged_126.csv")
+merged_126= read.csv("./merged_126.csv")
 dim(merged_126)
 # Group them and take a percentage of each term and make a pie chart. 
 function_percent <- merged_126 %>%
@@ -3134,7 +3134,7 @@ pie_chart
 
 
 set.seed(123)
-Mouse_stats_path = "C:/Users/sjr2797/Box/Cenik lab_Shilpa/FUS/Buffering MS/Mouse_statsR (3).csv"
+Mouse_stats_path = "./Mouse_statsR (3).csv"
 Mouse_stats <- read.csv(Mouse_stats_path)
 
 # Capitalize the 'transcript' column
@@ -3672,7 +3672,7 @@ Sup_Figure6
 
 
 
-path = "C:/Users/sjr2797/Box/Cenik lab_Shilpa/FUS/FUS_2023/Imputation methods/"
+path = getwd()
 ggsave("Figure1.pdf", plot = Figure1, path = path, width = 10, height = 8,dpi=300)
 
 ggsave("Sup_Figure1.pdf", plot =Sup_Figure1, path = path, width = 10, height = 10,dpi=300)
@@ -3699,16 +3699,16 @@ ggsave("Sup_Figure6.pdf", plot = Sup_Figure6, path = path, width = 10, height = 
 # Mouse MAD
 # Imports the protein abundance data
 
-Protein_abundance_table <- read.csv("C:/Users/sjr2797/Box/Cenik lab_Shilpa/FUS/FUS_2023/Aden/Mad Mouse Score ~ New/Sequencing_data/Protein_abundance/Protein_abundance.csv")
+Protein_abundance_table <- read.csv("./Protein_abundance.csv")
 
 # Imports the longest appris transcripts data
-Appris_data <-read.csv("C:/Users/sjr2797/Box/Cenik lab_Shilpa/FUS/FUS_2023/Aden/Mad Mouse Score ~ New/Longest_transcript/longest_appris_transcripts.csv")
+Appris_data <-read.csv("./longest_appris_transcripts.csv")
 
 
 
 
 # Imports the data needed to convert protein ID's to transcript and gene codes
-Protein_to_transcript <- read.csv("C:/Users/sjr2797/Box/Cenik lab_Shilpa/FUS/FUS_2023/Aden/Mad Mouse Score ~ New/G_profiler/gProfiler_mmusculus_protein_transcript.csv")
+Protein_to_transcript <- read.csv("./gProfiler_mmusculus_protein_transcript.csv")
 
 #Convert Protein ID's to Transcripts
 
@@ -3910,7 +3910,7 @@ significance_data
 #-------------------------------------------------------------------
 
 #Import RNA Sequencing TPM
-Rna_abundance_table <- read.csv("C:/Users/sjr2797/Box/Cenik lab_Shilpa/FUS/FUS_2023/Aden/Mad Mouse Score ~ New/Sequencing_data/RNA_abundance.csv")
+Rna_abundance_table <- read.csv("./RNA_abundance.csv")
  
 #Quality Control Data
 # Calculates the NA count per sample across each gene

@@ -23,9 +23,9 @@ library(doParallel)
 
 
 # these counts are after winsorization
-ribo_count= read.csv("C:/Users/sjr2797/Box/Cenik lab_Shilpa/FUS/FUS_2023/Imputation methods/ribo_raw_human_cap_995.csv")
-rnaseq_count= read.csv("C:/Users/sjr2797/Box/Cenik lab_Shilpa/FUS/FUS_2023/Imputation methods/rnaseq_raw_human_cap_995.csv")
-polyA=read.csv("C:/Users/sjr2797/Box/Cenik lab_Shilpa/FUS/FUS_2023/Imputation methods/polyA.csv")
+ribo_count= read.csv("./ribo_raw_human_cap_995.csv")
+rnaseq_count= read.csv("./rnaseq_raw_human_cap_995.csv")
+polyA=read.csv("./polyA.csv")
 dim(ribo_count)
 dim(rnaseq_count)
 dim(polyA)
@@ -203,10 +203,10 @@ final_result <- do.call(rbind, results)
 dim(final_result)
 final_result[1:5,1:5]
 
-write.csv(final_result, "C:/Users/sjr2797/Box/Cenik lab_Shilpa/FUS/FUS_2023/Imputation methods/ribo_rna_GBM_0.8.csv")
+write.csv(final_result, "./ribo_rna_GBM_0.8.csv")
 
 #if reading #
-#final_result= read.csv("C:/Users/sjr2797/Box/Cenik lab_Shilpa/FUS/FUS_2023/Imputation methods/ribo_rna_GBM_0.8.csv")
+#final_result= read.csv("./ribo_rna_GBM_0.8.csv")
 final_result[1:5,1:5]
 #
 
@@ -242,8 +242,8 @@ calculate_clr <- function(df) {
 
 
 #clr_GBM= calculate_clr(final_result)
-#write.csv(clr_GBM, "C:/Users/sjr2797/Box/Cenik lab_Shilpa/FUS/FUS_2023/Imputation methods/clr_GBM.csv")
-clr_GBM= read.csv("C:/Users/sjr2797/Box/Cenik lab_Shilpa/FUS/FUS_2023/Imputation methods/clr_GBM.csv")
+#write.csv(clr_GBM, "./clr_GBM.csv")
+clr_GBM= read.csv("./clr_GBM.csv")
 clr_GBM[1:5,1:5]
 dim(clr_GBM)
 row.names(clr_GBM)= clr_GBM[,1]
@@ -253,15 +253,15 @@ clr_GBM=clr_GBM[,-1]
 # each row is a sample and each column is a gene
 GBM_ilr= clr2ilr(clr_GBM)
 
-GBM_ilr= read.csv("C:/Users/sjr2797/Box/Cenik lab_Shilpa/FUS/FUS_2023/Imputation methods/GBM_ilr.csv")
-#write.csv(GBM_ilr, "C:/Users/sjr2797/Box/Cenik lab_Shilpa/FUS/FUS_2023/Imputation methods/GBM_ilr.csv")
+GBM_ilr= read.csv("./GBM_ilr.csv")
+#write.csv(GBM_ilr, "./GBM_ilr.csv")
 dim(clr_GBM)
 dim(GBM_ilr)
 
 
 # Calculate proportional regression
 
-write.csv(GBM_ilr, "C:/Users/sjr2797/Box/Cenik lab_Shilpa/FUS/FUS_2023/Imputation methods/GBM_ilr.csv")
+write.csv(GBM_ilr, "./GBM_ilr.csv")
 
 #split clr GBM to RNA and Ribo components
 dim(clr_GBM)
@@ -373,9 +373,9 @@ out <- foreach(i = 1:ncol(ilr_GBM_ribo), .combine = "cbind", .packages = c("comp
 stopCluster(cl)
 
 dim(out)
-#write.csv(out, "C:/Users/sjr2797/Box/Cenik lab_Shilpa/FUS/FUS_2023/Imputation methods/TE_GBM_clr.csv")
+#write.csv(out, "./TE_GBM_clr.csv")
 #TE_GBM_clr=out
-TE_GBM_clr= read.csv("C:/Users/sjr2797/Box/Cenik lab_Shilpa/FUS/FUS_2023/Imputation methods/TE_GBM_clr.csv")
+TE_GBM_clr= read.csv("./TE_GBM_clr.csv")
 # if read as csv ,then follwong code
 TE_GBM_clr=TE_GBM_clr[,-1]
 TE_GBM_clr[1:5,1:5]
@@ -482,8 +482,8 @@ TE_GBM_clr[1:5,1:5]
 TE_GBM_clr= TE_GBM_clr[,c(sampletoremove) := NULL]
 dim(TE_GBM_clr)
 
-RNA_GBM=write.csv(RNA_clr, "C:/Users/sjr2797/Box/Cenik lab_Shilpa/FUS/FUS_2023/Imputation methods/RNA_clr.csv")
-Ribo_GBM=write.csv(Ribo_clr, "C:/Users/sjr2797/Box/Cenik lab_Shilpa/FUS/FUS_2023/Imputation methods/Ribo_clr.csv")
-TE_GBM=write.csv(TE_GBM_clr, "C:/Users/sjr2797/Box/Cenik lab_Shilpa/FUS/FUS_2023/Imputation methods/TE_GBM_clr.csv")
+RNA_GBM=write.csv(RNA_clr, "./RNA_clr.csv")
+Ribo_GBM=write.csv(Ribo_clr, "./Ribo_clr.csv")
+TE_GBM=write.csv(TE_GBM_clr, "./TE_GBM_clr.csv")
 
 

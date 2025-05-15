@@ -1,6 +1,6 @@
-ribo_count_mouse= read.csv("C:/Users/sjr2797/Box/Cenik lab_Shilpa/FUS/FUS_2023/Imputation methods/ribo_raw_mouse_cap_995_input.csv")
-rnaseq_count_mouse= read.csv("C:/Users/sjr2797/Box/Cenik lab_Shilpa/FUS/FUS_2023/Imputation methods/rna_raw_mouse_cap_995_input.csv")
-polyA_mouse=read.csv("C:/Users/sjr2797/Box/Cenik lab_Shilpa/FUS/FUS_2023/Imputation methods/polyA_mouse.csv")
+ribo_count_mouse= read.csv("./ribo_raw_mouse_cap_995_input.csv")
+rnaseq_count_mouse= read.csv("./rna_raw_mouse_cap_995_input.csv")
+polyA_mouse=read.csv("./polyA_mouse.csv")
 dim(ribo_count_mouse)
 dim(rnaseq_count_mouse)
 #21569 genes ans 846 samples
@@ -198,8 +198,8 @@ calculate_clr <- function(df) {
 
 
 clr_GBM_mouse= calculate_clr(final_result_mouse)
-write.csv(clr_GBM_mouse, "C:/Users/sjr2797/Box/Cenik lab_Shilpa/FUS/FUS_2023/Imputation methods/clr_GBM_mouse.csv")
-clr_GBM_mouse= read.csv("C:/Users/sjr2797/Box/Cenik lab_Shilpa/FUS/FUS_2023/Imputation methods/clr_GBM_mouse.csv")
+write.csv(clr_GBM_mouse, "./clr_GBM_mouse.csv")
+clr_GBM_mouse= read.csv("./clr_GBM_mouse.csv")
 dim(clr_GBM_mouse)
 row.names(clr_GBM_mouse)= clr_GBM_mouse[,1]
 clr_GBM_mouse=clr_GBM_mouse[,-1]
@@ -208,7 +208,7 @@ clr_GBM_mouse[1280:1284,1:5]
 GBM_ilr_mouse= clr2ilr(clr_GBM_mouse)
 # Print output dimensions
 dim(GBM_ilr_mouse)
-write.csv(GBM_ilr_mouse, "C:/Users/sjr2797/Box/Cenik lab_Shilpa/FUS/FUS_2023/Imputation methods/GBM_ilr_mouse.csv")
+write.csv(GBM_ilr_mouse, "./GBM_ilr_mouse.csv")
 
 dim(GBM_ilr_mouse)
 GBM_ilr_mouse[1280:1284,1:5]
@@ -319,8 +319,8 @@ out_mouse <- foreach(i = 1:ncol(ilr_GBM_ribo_mouse), .combine = "cbind", .packag
 stopCluster(cl)
 
 dim(out_mouse)
-write.csv(out_mouse, "C:/Users/sjr2797/Box/Cenik lab_Shilpa/FUS/FUS_2023/Imputation methods/TE_GBM_clr_mouse.csv")
-TE_GBM_clr_mouse= read.csv("C:/Users/sjr2797/Box/Cenik lab_Shilpa/FUS/FUS_2023/Imputation methods/TE_GBM_clr_mouse.csv")
+write.csv(out_mouse, "./TE_GBM_clr_mouse.csv")
+TE_GBM_clr_mouse= read.csv("./TE_GBM_clr_mouse.csv")
 TE_GBM_clr_mouse[1:5,1:5]
 
 
@@ -422,8 +422,8 @@ TE_GBM_clr_mouse= TE_GBM_clr_mouse[,c(sampletoremove_mouse) := NULL]
 dim(TE_GBM_clr_mouse)
 
 
-RNA_mouse_GBM=write.csv(RNA_clr_mouse, "C:/Users/sjr2797/Box/Cenik lab_Shilpa/FUS/FUS_2023/Imputation methods/RNA_clr_mouse.csv")
-Ribo_mouse_GBM=write.csv(Ribo_clr_mouse, "C:/Users/sjr2797/Box/Cenik lab_Shilpa/FUS/FUS_2023/Imputation methods/Ribo_clr_mouse.csv")
-TE_mouse_GBM=write.csv(TE_GBM_clr_mouse, "C:/Users/sjr2797/Box/Cenik lab_Shilpa/FUS/FUS_2023/Imputation methods/TE_GBM_clr_mouse.csv")
+RNA_mouse_GBM=write.csv(RNA_clr_mouse, "./RNA_clr_mouse.csv")
+Ribo_mouse_GBM=write.csv(Ribo_clr_mouse, "./Ribo_clr_mouse.csv")
+TE_mouse_GBM=write.csv(TE_GBM_clr_mouse, "./TE_GBM_clr_mouse.csv")
 
 
