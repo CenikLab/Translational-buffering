@@ -27,7 +27,7 @@ library(doParallel)
 
 # table 
 # to find correlation convert 
-setwd("C:/Users/sjr2797/Box/Cenik lab_Shilpa/FUS/FUS_2023/Imputation methods")
+
 
 RNA_clr=read.csv("./RNA_clr.csv")
 Ribo_clr=read.csv("./Ribo_clr.csv")
