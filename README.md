@@ -10,5 +10,5 @@ This R script has code to proceess RNA and Ribo read counts to calculate TE at s
 #TB analysis
 This R script has code to analyse translational buffering  in human and mouse and generate figures for the manuscript. 
 
-# CRSIPR.yaml
+# CRISPR.yaml
 This was used for generating the .ribo files using RiboFlow. 

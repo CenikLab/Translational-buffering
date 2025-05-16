@@ -169,7 +169,7 @@ final_result_mouse <- do.call(rbind, results)
 dim(final_result_mouse)
 final_result_mouse[1:5,1:5]
 
-write.csv(final_result_mouse, "C:/Users/sjr2797/Box/Cenik lab_Shilpa/FUS/FUS_2023/Imputation methods/ribo_rna_GBM_0.8_mouse.csv")
+write.csv(final_result_mouse, "./ribo_rna_GBM_0.8_mouse.csv")
 
 # Calculate clr for each sample
 
