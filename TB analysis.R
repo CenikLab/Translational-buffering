@@ -2175,7 +2175,7 @@ siRNA_RNA_Ribo
 library(gghalves)
 
 # Figure 5 
-Array.ribo = Ribo("C:/Users/sjr2797/Box/Cenik lab_Shilpa/FUS/Buffering MS/all.ribo")
+Array.ribo = Ribo("./all.ribo")
 rnaseq_CDS <- get_rnaseq(ribo.object = Array.ribo,
                          tidy        = TRUE,
                          region      = "CDS",
