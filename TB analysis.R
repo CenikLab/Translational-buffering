@@ -6,7 +6,7 @@ library(tidyr)
 library(readxl)
 library(ggrepel)
 library(ggpubr)
-library(seqinr)
+library(seqinr) 
 library(cubar)
 library(Biostrings)
 library(cowplot)
@@ -19,6 +19,10 @@ library(patchwork)
 library(zCompositions)
 library(foreach)
 library(doParallel)
+library(zoo)
+library(clusterProfiler)
+library(org.Hs.eg.db)
+library(org.Mm.eg.db)
 
 
 # here TB_score=1/ TB1 refers to "TB high"
@@ -630,6 +634,9 @@ Combined_length= ggplot(length_new, aes(x = Variable, y = Value, fill= Buffering
 Combined_length
 
 
+
+
+
 # For supplementary
 
 
@@ -762,6 +769,27 @@ Combined_length_GC= ggplot(length_new, aes(x = Variable, y = Value, fill= Buffer
 Combined_length_GC
 
 
+# for supplementray 2A & B 
+
+human_stat_cor= merge(human_stat, Buffering_human_rank[,c("transcript","TB_rank")], by.x= "Gene", by.y= "transcript")
+human_stat_cor=human_stat_cor[order(human_stat_cor$TB_rank),]
+human_stat_cor$CDS_len_ma <- rollmean(human_stat_cor$CDS_len, k = 250, fill = NA, align = "center")
+CDS_length_moving=ggplot(human_stat_cor, aes(x = TB_rank, y = CDS_len, color=Buffering))+geom_point()+
+  geom_line(aes(y = CDS_len_ma), color = "black", size = 1)+scale_color_manual(values = c("#045275", "#089099", "#B7E6A5"))+
+  labs( y = "CDS length (log10)", x=" TB Rank")+theme(axis.text = element_text(size = 12),
+                                                      axis.title = element_text(size = 12),
+                                                      plot.title = element_text(hjust = 0.5),panel.background = element_rect(fill = "white"),panel.grid = element_blank(),panel.border = element_rect(color = "black", size = 1, fill = NA),panel.spacing = unit(0.5, "lines"))+
+  theme(legend.position ="none")
+human_stat_cor$utr3_len_ma <- rollmean(human_stat_cor$UTR3_len, k = 250, fill = NA, align = "center")
+UTR3_len_moving=ggplot(human_stat_cor, aes(x = TB_rank, y = UTR3_len, color=Buffering))+geom_point()+
+  geom_line(aes(y = utr3_len_ma), color = "black", size = 1)+scale_color_manual(values = c("#045275", "#089099", "#B7E6A5"))+
+  labs( y = "3 UTR length (log10)", x=" TB Rank")+theme(axis.text = element_text(size = 12),
+                                                        axis.title = element_text(size = 12),
+                                                        plot.title = element_text(hjust = 0.5),panel.background = element_rect(fill = "white"),panel.grid = element_blank(),panel.border = element_rect(color = "black", size = 1, fill = NA),panel.spacing = unit(0.5, "lines"))+
+  theme(legend.position ="none")
+UTR3_len_moving
+
+
 
 ## # Plot the median mRNA expression levels  of all genes
 numeric_RNA=RNA_human_nond%>%
@@ -800,6 +828,7 @@ Median_RNA_expression_human=ggplot(RNA_median, aes(x= median, color= Buffering))
 Median_RNA_expression_human
 
 
+
 #calculate the significance
 
 
@@ -812,6 +841,20 @@ significance_data <- RNA_median %>%
     TB2_TB3 = wilcox.test(median ~ Buffering, RNA_median = .,
                           subset = Buffering %in% c("TB_score=2", "TB_score=3"))$p.value
   )
+
+# in which quantile the TB high lies.
+global_cutoff <- quantile(RNA_median$median, 0.9)  # 90th percentile across all genes
+
+
+RNA_median%>%
+  group_by(Buffering) %>%
+  summarise(
+    total_genes = n(),
+    top_genes = sum(median >= global_cutoff),
+    percent_top = 100 * top_genes / total_genes
+  )
+
+global_cutoff
 
 
 # Figure 3
@@ -1090,6 +1133,19 @@ CFD_Random=ggplot(cf_freq_all, aes(x= CombinedCategory, y= Random_nonBuffered_di
 cor.test(cf_freq_all$Random_nonBuffered_diff, cf_freq_all$X293T_endo, method= "pearson")
 
 
+# % of genes in 90th percentile of CAI
+global_cutoff <- quantile(cai_buf_ran$value, 0.9)  # 90th percentile across all genes
+
+
+cai_buf_ran%>%
+  group_by(variable) %>%
+  summarise(
+    total_genes = n(),
+    top_genes = sum(value >= global_cutoff),
+    percent_top = 100 * top_genes / total_genes
+  )
+
+global_cutoff
 
 
 #MAD for proteomics
@@ -1237,7 +1293,7 @@ mad_values_plot_unmatched= ggplot(Protein_cancer_cell_median_long, aes(x=  Varia
                                                                                                                                               panel.spacing = unit(0.5, "lines"))+theme(legend.position ="none")+coord_cartesian(ylim=c(0,1.5))+scale_x_discrete(expand = c(0.2, 0.2))
 
 mad_values_plot_unmatched
-install.packages("ggbreak")  # if not already installed
+  # if not already installed
 library(ggbreak)
 p_main=ggplot(Protein_cancer_cell_median_long, aes(x = Value,fill= Buffering)) +
   geom_histogram(aes(y = after_stat(density)), 
@@ -1382,7 +1438,7 @@ mad_values_Cell_2020_plot= ggplot(mad_values_Cell_2020_long, aes(x=  Variable, y
 
 mad_values_Cell_2020_plot
 
-
+#Cell_2020_protein_MAD[Gene_Name=="CFTR"]
 
 significance_data <- mad_values_Cell_2020_long %>%
   summarise(
@@ -1401,8 +1457,7 @@ significance_data
 
 
 
-# can we match  with median abundance
-
+# can we match  with MAD RNA
 
 Cell_2020_protein_MAD_median= apply(Cell_2020_protein_MAD_numeric, 1, median, na.rm = TRUE)
 mad_values_Cell_2020$median=Cell_2020_protein_MAD_median
@@ -1478,6 +1533,30 @@ significance_data
 
 
 
+# similarly for proteomic analysis (plot correlation). 
+# merge TB rank and protein MAD from two tables  and plot as above. 
+Cancer_cell_moving= merge(Protein_cancer_cell_median_long[, c("genes.x", "Value", "Buffering")], Buffering_human_rank[, c("transcript","TB_rank")],by.x= "genes.x", by.y= "transcript")
+
+
+Cancer_cell_moving_plot=ggplot(Cancer_cell_moving, aes(x = TB_rank, y = Value, color=Buffering))+geom_point()+
+  geom_smooth(method = "lm", se = FALSE, color ="black")+scale_color_manual(values = c("#045275", "#089099", "#B7E6A5"))+
+  labs( y = "Median absolute deviation", x=" TB Rank")+theme(axis.text = element_text(size = 12),
+                                                             axis.title = element_text(size = 12),
+                                                             plot.title = element_text(hjust = 0.5),panel.background = element_rect(fill = "white"),panel.grid = element_blank(),panel.border = element_rect(color = "black", size = 1, fill = NA),panel.spacing = unit(0.5, "lines"))+
+  theme(legend.position ="none")+coord_cartesian(ylim=c(0,1.5))
+
+Cancer_cell_moving_plot
+# tissue proteomic 
+Cell_2020_moving= merge(mad_values_Cell_2020_long[, c("genes", "Value", "Buffering")], Buffering_human_rank[, c("transcript","TB_rank")],by.x= "genes", by.y= "transcript")
+
+
+Cell_2020_moving_plot=ggplot(Cell_2020_moving, aes(x = TB_rank, y = Value, color=Buffering))+geom_point()+
+  geom_smooth(method = "lm", se = FALSE, color ="black")+scale_color_manual(values = c("#045275", "#089099", "#B7E6A5"))+
+  labs( y = "Median absolute deviation", x=" TB Rank")+theme(axis.text = element_text(size = 12),
+                                                             axis.title = element_text(size = 12),
+                                                             plot.title = element_text(hjust = 0.5),panel.background = element_rect(fill = "white"),panel.grid = element_blank(),panel.border = element_rect(color = "black", size = 1, fill = NA),panel.spacing = unit(0.5, "lines"))+
+  theme(legend.position ="none")+coord_cartesian(ylim=c(0,1.5))
+Cell_2020_moving_plot
 
 
 
@@ -1519,6 +1598,22 @@ summary_data <- pLI_genes %>%
   group_by(Buffering) %>%
   mutate(percentage = count / sum(count) * 100)
 
+#  are score distributions significantly different across the 3 Buffering categories?
+contingency <- summary_data %>%
+  dplyr::select(Buffering, score_range, count) %>%
+  tidyr::pivot_wider(names_from = Buffering, values_from = count, values_fill = 0)
+
+contingency
+mat <- as.matrix(contingency[,-1])  # drop score_range column
+rownames(mat) <- contingency$score_range
+
+chisq.test(mat)
+#
+#Pearson's Chi-squared test
+
+#data:  mat
+#X-squared = 519.52, df = 18, p-value < 2.2e-16
+
 # Plot histogram
 pLI_plot=ggplot(summary_data, aes(x = score_range, y = percentage, fill = Buffering)) +
   geom_bar(stat = "identity", position = "dodge") +
@@ -1557,6 +1652,23 @@ summary_data <- Collins_2022 %>%
   group_by(Buffering) %>%
   mutate(percentage = count / sum(count) * 100)
 summary_data=na.omit(summary_data)
+
+
+contingency <- summary_data %>%
+  dplyr::select(Buffering, score_range, count) %>%
+  tidyr::pivot_wider(names_from = Buffering, values_from = count, values_fill = 0)
+
+contingency
+mat <- as.matrix(contingency[,-1])  # drop score_range column
+rownames(mat) <- contingency$score_range
+
+chisq.test(mat)
+
+##Pearson's Chi-squared test
+
+#data:  mat
+#X-squared = 151.26, df = 18, p-value < 2.2e-16
+
 # Plot histogram
 pTriplo_plot= ggplot(summary_data, aes(x = score_range, y = percentage, fill = Buffering)) +
   geom_bar(stat = "identity", position = "dodge") +
@@ -1593,6 +1705,21 @@ pHaplo_plot= ggplot(summary_data, aes(x = score_range, y = percentage, fill = Bu
         plot.title = element_text(hjust = 0.5),panel.background = element_rect(fill = "white"),panel.grid = element_blank(),panel.border = element_rect(color = "black", size = 1, fill = NA),
         panel.spacing = unit(0.5, "lines"))+theme(legend.position ="none")+scale_fill_manual(values = c("#045275","#089099", "#B7E6A5"))
 pHaplo_plot
+
+contingency <- summary_data %>%
+  dplyr::select(Buffering, score_range, count) %>%
+  tidyr::pivot_wider(names_from = Buffering, values_from = count, values_fill = 0)
+
+contingency
+mat <- as.matrix(contingency[,-1])  # drop score_range column
+rownames(mat) <- contingency$score_range
+
+chisq.test(mat)
+
+#Pearson's Chi-squared test
+
+#data:  mat
+#X-squared = 114.77, df = 18, p-value = 4.042e-16
 
 #median 
 median(subset(Collins_2022, Collins_2022$Buffering=="TB_score=1")$pTriplo)
@@ -1705,443 +1832,403 @@ significance_data
 
 #siRNA
 
-
-
-
-
-Ribosomeprofiling = Ribo_clr
-RNAsequencing =RNA_clr
-Translationefficiency= TE_GBM_clr 
-Ribosomeprofiling=as.data.frame(Ribosomeprofiling)
-RNAsequencing=as.data.frame(RNAsequencing)
-Translationefficiency=as.data.frame(Translationefficiency)
-#Makes the transcripts the row names and removes the transcript column and an unnecessary index column
-row.names(Ribosomeprofiling)= Ribo_clr$transcript
-row.names(RNAsequencing)= RNA_clr$transcript
-row.names(Translationefficiency)= TE_GBM_clr$transcript
-Ribosomeprofiling$transcript= NULL
-RNAsequencing$transcript =NULL
-Translationefficiency$transcript =NULL
-
-
-
-Ribosomeprofiling[1:5,1:5]
-
-
-
-row_headers_rpl5 <- "RPL5"
-row_headers_rplp1 <- "RPLP1"
-row_headers_rplp2 <- "RPLP2"
-row_headers_rps19 <- "RPS19"
-row_headers_eif1 <- "EIF1"
-row_headers_hnrnpc <- "HNRNPC"
-row_headers_eif3e <- "EIF3E"
-row_headers_dhx36 <- "DHX36"
-row_headers_dhx9 <- "DHX9"
-row_headers_ythdf3 <- "YTHDF3"
-row_headers_setd2 <- "SETD2"
-row_headers_eif2b5 <- "EIF2B5"
-row_headers_ythdf1 <- "YTHDF1"
-row_headers_arntl <- "ARNTL"
-row_headers_mettl3 <- "METTL3"
-row_headers_kbtbd8 <- "KBTBD8"
-row_headers_tcof1 <- "TCOF1"
-row_headers_fbl <- "FBL"
-row_headers_ythdf1_2 <- "YTHDF1"
-row_headers_ythdf2 <- "YTHDF2"
-row_headers_mettl14 <- "METTL14"
-row_headers_fkbp10 <- "FKBP10"
-row_headers_pdcd4 <- "PDCD4"
-row_headers_slc3a2 <- "SLC3A2"
-row_headers_eif2a <- "EIF2A"
-row_headers_ddx3x <- "DDX3X"
-
-
-
-col_headers_rpl5 <- c("GSM2360175", "GSM2360176", "GSM2360179", "GSM2360180")
-
-control_rpl5 <- c("notcontrol", "notcontrol", "control", "control")
-
-#--------------------------------------------------------------
-
-col_headers_rplp1 <- c("GSM3900208", "GSM3900209", "GSM3900210", "GSM3900211")
-
-control_rplp1 <- c("control", "control", "control", "notcontrol")
-
-#--------------------------------------------------------------
-
-col_headers_rplp2 <- c("GSM3900208", "GSM3900209", "GSM3900210", "GSM3900212", "GSM3900213")
-
-control_rplp2 <- c("control", "control", "control", "notcontrol", "notcontrol")
-
-#--------------------------------------------------------------
-
-col_headers_rps19 <- c("GSM2360175", "GSM2360176", "GSM2360177", "GSM2360178")
-
-control_rps19 <- c("notcontrol", "notcontrol", "control", "control")
-
-#--------------------------------------------------------------
-
-col_headers_eif1 <- c("GSM2327826", "GSM2327828")
-
-control_eif1 <- c("notcontrol", "control")
-
-#--------------------------------------------------------------
-
-col_headers_hnrnpc <- c("GSM2204389", "GSM2204390", "GSM2204391", "GSM2204392", "GSM2204393", "GSM2204394", "GSM2204395", "GSM2204396")
-
-control_hnrnpc <- c("control", "control", "control", "control", "notcontrol", "notcontrol", "notcontrol", "notcontrol")
-
-#--------------------------------------------------------------
-
-col_headers_eif3e <- c("GSM3762993", "GSM3762994", "GSM3762995", "GSM3762996", "GSM3762997", "GSM3762998")
-
-control_eif3e <- c("notcontrol", "notcontrol", "notcontrol", "control", "control", "control")
-
-#--------------------------------------------------------------
-
-col_headers_dhx36 <- c("GSM2817679", "GSM2817680", "GSM2817681", "GSM2817682", "GSM2817683", "GSM2817684", "GSM2817685", "GSM2817686")
-
-control_dhx36 <- c("control", "control", "control", "control", "control", "notcontrol", "notcontrol", "notcontrol")
-
-#--------------------------------------------------------------
-
-col_headers_dhx9 <- c("GSM2817679", "GSM2817680", "GSM2817681", "GSM2817682", "GSM2817683", "GSM2817687", "GSM2817688", "GSM2817689")
-
-control_dhx9 <- c("control", "control", "control", "control", "control", "notcontrol", "notcontrol", "notcontrol")
-
-#--------------------------------------------------------------
-
-col_headers_ythdf3 <- c("GSM3944607", "GSM3944615", "GSM3944616", "GSM3944617")
-
-control_ythdf3 <- c("control", "notcontrol", "notcontrol", "notcontrol")
-
-#--------------------------------------------------------------
-
-col_headers_setd2 <- c("GSM3450419", "GSM3450420", "GSM3450424")
-
-control_setd2 <- c("control", "control", "notcontrol")
-
-#--------------------------------------------------------------
-
-col_headers_eif2b5 <- c("GSM2883304", "GSM2883305", "GSM2883306", "GSM2883307", "GSM2883313", "GSM2883314", "GSM2883315", "GSM2883320", "GSM2883321", "GSM2883322", "GSM2883323")
-
-control_eif2b5 <- c("control", "notcontrol", "control", "notcontrol", "notcontrol", "control", "notcontrol", "control", "notcontrol", "control", "notcontrol")
-
-#--------------------------------------------------------------
-
-col_headers_ythdf1 <- c("GSM4054749", "GSM4054750", "GSM4054751")
-
-control_ythdf1 <- c("notcontrol", "notcontrol", "control")
-
-#--------------------------------------------------------------
-
-col_headers_arntl <- c("GSM1371443", "GSM1371444", "GSM1371445", "GSM1371446", "GSM1371447", "GSM1371448", "GSM1371449", "GSM1371450", "GSM1371451", "GSM1371452", "GSM1371453", "GSM1371455", "GSM1371456", "GSM1371457", "GSM1371458", "GSM1371459", "GSM1371460", "GSM1371461", "GSM1371462", "GSM1371463", "GSM1371464", "GSM1371465", "GSM1371466", "GSM1371467", "GSM1371468", "GSM1371469", "GSM1371470", "GSM1371471", "GSM1371472", "GSM1371473", "GSM1371474", "GSM1371475", "GSM1371476", "GSM1371477", "GSM1371478", "GSM1371479", "GSM1371480", "GSM1371481", "GSM1371482", "GSM1371483", "GSM1371484", "GSM1371485", "GSM1371486", "GSM1371487", "GSM1371488", "GSM1371489", "GSM1371490")
-
-control_arntl <- c("control", "control", "control", "control", "control", "control", "control", "control", "control", "control", "control", "control", "control", "control", "control", "control", "control", "control", "control", "control", "control", "control", "control", "notcontrol", "notcontrol", "notcontrol", "notcontrol", "notcontrol", "notcontrol", "notcontrol", "notcontrol", "notcontrol", "notcontrol", "notcontrol", "notcontrol", "notcontrol", "notcontrol", "notcontrol", "notcontrol", "notcontrol", "notcontrol", "notcontrol", "notcontrol", "notcontrol", "notcontrol", "notcontrol", "notcontrol")
-
-#--------------------------------------------------------------
-
-col_headers_mettl3 <- c("GSM2602082", "GSM2602083", "GSM2602084", "GSM2602088", "GSM2602089", "GSM2602090")
-
-control_mettl3 <- c("control", "control", "control", "notcontrol", "notcontrol", "notcontrol")
-
-#--------------------------------------------------------------
-
-col_headers_kbtbd8 <- c("GSM1782874", "GSM1782876", "GSM1782879")
-
-control_kbtbd8 <- c("control", "notcontrol", "notcontrol")
-
-#--------------------------------------------------------------
-
-col_headers_tcof1 <- c("GSM1782874", "GSM1782877", "GSM1782880")
-
-control_tcof1 <- c("control", "notcontrol", "notcontrol")
-
-#--------------------------------------------------------------
-
-col_headers_fbl <- c("GSM2825128", "GSM2825129", "GSM2825131", "GSM2825132")
-
-control_fbl <- c("control", "notcontrol", "notcontrol", "control")
-
-#--------------------------------------------------------------
-
-col_headers_ythdf1_2 <- c("GSM3944607", "GSM3944610", "GSM3944611")
-
-control_ythdf1_2 <- c("control", "notcontrol", "notcontrol")
-
-#--------------------------------------------------------------
-
-col_headers_ythdf2 <- c("GSM3944607", "GSM3944614")
-
-control_ythdf2 <- c("control", "notcontrol")
-
-#--------------------------------------------------------------
-
-col_headers_mettl14 <- c("GSM3450419", "GSM3450420", "GSM3450421", "GSM3450422")
-
-control_mettl14 <- c("control", "control", "notcontrol", "notcontrol")
-
-#--------------------------------------------------------------
-
-col_headers_fkbp10 <- c("GSM3718424", "GSM3718425", "GSM3718426", "GSM3718427")
-
-control_fkbp10 <- c("control", "control", "notcontrol", "notcontrol")
-
-#--------------------------------------------------------------
-
-col_headers_pdcd4 <- c("GSM4110755", "GSM4110757", "GSM4110758", "GSM4110759", "GSM4110760")
-
-control_pdcd4 <- c("notcontrol", "notcontrol", "control", "control", "control")
-
-#--------------------------------------------------------------
-
-col_headers_slc3a2 <- c("GSM1446854", "GSM1446856")
-
-control_slc3a2 <- c("control", "notcontrol")
-
-#--------------------------------------------------------------
-
-col_headers_eif2a <- c("GSM5291928", "GSM5291929", "GSM5291930", "GSM5291931", "GSM5291932", "GSM5291933")
-
-control_eif2a <- c("control", "control", "notcontrol", "notcontrol", "notcontrol", "notcontrol")
-
-#--------------------------------------------------------------
-
-col_headers_ddx3x <- c("GSM4258310", "GSM4258311", "GSM4258315", "GSM4258316", "GSM4258317", "GSM4258319")
-
-control_ddx3x <- c("control", "control", "notcontrol", "notcontrol", "notcontrol", "notcontrol")
-
-
-
-
-
-#Function for Processing Gene Data
-create_gene_data <- function(gene_name, col_headers, row_headers, Ribosomeprofiling, RNAsequencing, Translationefficiency, control) {
+# Function used to strip the "-###" off the gene name
+strip_extension = function(genenames) {
+  return(sapply ( strsplit(genenames, split = "-") , "[[", 1 ) )
+}
+
+# Function to retrieve logFC for RNA and Ribo Datasets
+run_dge_analysis <- function(samples, TB_score, raw_rna_counts, raw_ribo_counts, gene_of_interest) {
   
-  # Create empty vectors to store the data
-  Riboprofdata <- vector("list", length(col_headers))
-  RNAseqdata <- vector("list", length(col_headers))
-  Translationdata <- vector("list", length(col_headers))
-  
-  # Loop over each column header
-  for (i in seq_along(col_headers)) {
-    # Check lengths of data before subsetting
-    if (nrow(Ribosomeprofiling) != nrow(RNAsequencing) || nrow(RNAsequencing) != nrow(Translationefficiency)) {
-      stop("Input data matrices (Ribosomeprofiling, RNAsequencing, Translationefficiency) have different numbers of rows.")
-    }
+  # Sub-function to process each dataset
+  process_dataset <- function(count_data, samples, gene_of_interest) {
     
-    Riboprofdata[[i]] <- Ribosomeprofiling[row_headers, col_headers[i]]
-    #print(Ribosomeprofiling[row_headers, col_headers[i]])
-    RNAseqdata[[i]] <- RNAsequencing[row_headers, col_headers[i]]
-    #print(RNAsequencing[row_headers, col_headers[i]])
-    Translationdata[[i]] <- Translationefficiency[row_headers, col_headers[i]]
-    #print(Translationdata[row_headers, col_headers[i]])
+    # Subset counts for the samples of interest
+    count_subset <- count_data |>
+      dplyr::select(any_of(c("Gene_name", samples$sample)))
+    
+    # Create DGEList object
+    dge <- DGEList(
+      counts = count_subset[, -1], # exclude Gene_name column
+      genes = count_subset$Gene_name,
+      group = samples$group
+    )
+    
+    # Filter lowly expressed genes
+    keep <- filterByExpr(dge)
+    dge <- dge[keep, , keep.lib.sizes = FALSE]
+    
+    # Normalize
+    dge <- calcNormFactors(dge, method = "TMM")
+    
+    # Create design matrix
+    design <- model.matrix(~ 0 + group, data = samples)
+    
+    # Create contrast matrix
+    contrast_matrix <- makeContrasts(
+      KD_vs_Ctrl = groupKD - groupCtrl,
+      levels = design
+    )
+    
+    # Estimate dispersion and fit model
+    dge <- estimateDisp(dge, design)
+    fit <- glmQLFit(dge, design)
+    
+    # Perform differential expression test
+    qlf <- glmQLFTest(fit, contrast = contrast_matrix[, "KD_vs_Ctrl"])
+    
+    # Extract results and add gene names
+    results <- qlf$table
+    results$Gene_name <- qlf$genes$genes
+    
+    # Reorder columns and filter for gene of interest
+    results <- results |>
+      dplyr::select(Gene_name, everything()) |>
+      filter(Gene_name == gene_of_interest)
+    
+    return(results)
   }
   
-  # Create named list for data frame columns
-  df_list <- setNames(
-    list(
-      unlist(RNAseqdata),
-      unlist(Riboprofdata),
-      unlist(Translationdata),
-      control
-    ),
-    c(
-      paste0("RNAseq_", gene_name),
-      paste0("Riboprof_", gene_name),
-      paste0("Transeff_", gene_name),
-      "Control"
-    )
+  # Process RNA data
+  cat("Processing RNA data...\n")
+  qlf_RNA <- process_dataset(raw_rna_counts, samples, gene_of_interest)
+  qlf_RNA$type <- "RNA" 
+  qlf_RNA$gene <- gene_of_interest
+  qlf_RNA <- qlf_RNA |>
+    rename(RNAlogFC = logFC,
+           RNAPvalue = PValue) |>
+    dplyr::select(gene, RNAlogFC, RNAPvalue)
+  
+  # Process Ribo data
+  cat("Processing Ribo data...\n")
+  qlf_Ribo <- process_dataset(raw_ribo_counts, samples, gene_of_interest)
+  qlf_Ribo$type <- "Ribo"
+  qlf_Ribo$gene <- gene_of_interest
+  qlf_Ribo <- qlf_Ribo |>
+    rename(RibologFC = logFC,
+           RiboPvalue = PValue) |>
+    dplyr::select(gene, RibologFC, RiboPvalue)
+  
+  qlf_data <- left_join(qlf_RNA, qlf_Ribo, by = "gene")
+  qlf_data$TB_score <- TB_score
+  
+  
+  # Return both results in a list
+  return(qlf_data)
+}
+
+
+# Import raw_rna_counts
+raw_rna_counts <- read.csv("rnaseq_raw_human_cap_995.csv") |>
+  rename(
+    Gene_name = X
   )
-  
-  # Convert list to data frame
-  data <- as.data.frame(df_list)
-  
-  return(data)
-}
+
+raw_rna_gene_names <- raw_rna_counts$Gene_name
+raw_rna_gene_names <- strip_extension(raw_rna_gene_names)
+
+raw_rna_counts$Gene_name <- raw_rna_gene_names
+
+#--------------------------------------------
+
+# Import raw_ribo_counts
+raw_ribo_counts <- read.csv("ribo_raw_human_cap_995.csv") |>
+  rename(
+    Gene_name = X
+  )
+
+raw_ribo_gene_names <- raw_ribo_counts$Gene_name
+raw_ribo_gene_names <- strip_extension(raw_ribo_gene_names)
+
+raw_ribo_counts$Gene_name <- raw_ribo_gene_names
+
+#--------------------------------------------
+# Remove Excess
+remove(raw_ribo_gene_names)
+remove(raw_rna_gene_names)
+remove(strip_extension)
+
+#--------------------------------------------
+
+results <- list()
+
+rpl5_sample_list <- data.frame(
+  sample = c("GSM2360175", "GSM2360176", "GSM2360179", "GSM2360180"),
+  group = c("KD", "KD", "Ctrl", "Ctrl")
+)
+
+rpl5_tb_score <- 1
+
+rpl5_log_fc <- run_dge_analysis(rpl5_sample_list, rpl5_tb_score, raw_rna_counts, raw_ribo_counts, "RPL5")
+
+results[["RPL5"]] <- rpl5_log_fc
+
+rplp1_sample_list <- data.frame(
+  sample = c("GSM3900208", "GSM3900209", "GSM3900210", "GSM3900211"),
+  group = c("Ctrl", "Ctrl", "Ctrl", "KD")
+)
+
+rplp1_tb_score <- 1
+
+rplp1_log_fc <- run_dge_analysis(rplp1_sample_list, rplp1_tb_score, raw_rna_counts, raw_ribo_counts, "RPLP1")
+
+results[["RPLP1"]] <- rplp1_log_fc
+
+rplp2_sample_list <- data.frame(
+  sample = c("GSM3900208", "GSM3900209", "GSM3900210", "GSM3900212", "GSM3900213"),
+  group = c("Ctrl", "Ctrl", "Ctrl", "KD", "KD")
+)
+
+rplp2_tb_score <- 1
+
+rplp2_log_fc <- run_dge_analysis(rplp2_sample_list, rplp2_tb_score, raw_rna_counts, raw_ribo_counts, "RPLP2")
+
+results[["RPLP2"]] <- rplp2_log_fc
+
+rps19_sample_list <- data.frame(
+  sample = c("GSM2360175", "GSM2360176", "GSM2360177", "GSM2360178"),
+  group = c("KD", "KD", "Ctrl", "Ctrl")
+)
+
+rps19_tb_score <- 1
+
+rps19_log_fc <- run_dge_analysis(rps19_sample_list, rps19_tb_score, raw_rna_counts, raw_ribo_counts, "RPS19")
+
+results[["RPS19"]] <- rps19_log_fc
+
+
+# # Must have more than 2 samples, Error (Remove for later)
+# eif1_sample_list <- data.frame(
+# 	sample = c("GSM2327826", "GSM2327828"),
+# 	group = c("KD", "Ctrl")
+# )
+# 
+# eif1_tb_score <- 1
+# 
+# eif1_log_fc <- run_dge_analysis(eif1_sample_list, eif1_tb_score, raw_rna_counts, raw_ribo_counts, "EIF1")
+# 
+# results[["EIF1"]] <- eif1_log_fc
+# 
+# check <- raw_ribo_counts |>
+#   select(any_of(c("Gene_name", eif1_sample_list$sample)))
+
+hnrnpc_sample_list <- data.frame(
+  sample = c("GSM2204389", "GSM2204390", "GSM2204391", "GSM2204392", "GSM2204393", "GSM2204394", "GSM2204395", "GSM2204396"),
+  group = c("Ctrl", "Ctrl", "Ctrl", "Ctrl", "KD", "KD", "KD", "KD")
+)
+
+hnrnpc_tb_score <- 1
+
+hnrnpc_log_fc <- run_dge_analysis(hnrnpc_sample_list, hnrnpc_tb_score, raw_rna_counts, raw_ribo_counts, "HNRNPC")
+
+results[["HNRNPC"]] <- hnrnpc_log_fc
+
+eif3e_sample_list <- data.frame(
+  sample = c("GSM3762993", "GSM3762994", "GSM3762995", "GSM3762996", "GSM3762997", "GSM3762998"),
+  group = c("KD", "KD", "KD", "Ctrl", "Ctrl", "Ctrl")
+)
+
+eif3e_tb_score <- 2
+
+eif3e_log_fc <- run_dge_analysis(eif3e_sample_list, eif3e_tb_score, raw_rna_counts, raw_ribo_counts, "EIF3E")
+
+results[["EIF3E"]] <- eif3e_log_fc
+
+dhx36_sample_list <- data.frame(
+  sample = c("GSM2817679", "GSM2817680", "GSM2817681", "GSM2817682", "GSM2817683", "GSM2817684", "GSM2817685", "GSM2817686"),
+  group = c("Ctrl", "Ctrl", "Ctrl", "Ctrl", "Ctrl", "KD", "KD", "KD")
+)
+
+dhx36_tb_score <- 3
+
+dhx36_log_fc <- run_dge_analysis(dhx36_sample_list, dhx36_tb_score, raw_rna_counts, raw_ribo_counts, "DHX36")
+
+results[["DHX36"]] <- dhx36_log_fc
+
+dhx9_sample_list <- data.frame(
+  sample = c("GSM2817679", "GSM2817680", "GSM2817681", "GSM2817682", "GSM2817683", "GSM2817687", "GSM2817688", "GSM2817689"),
+  group = c("Ctrl", "Ctrl", "Ctrl", "Ctrl", "Ctrl", "KD", "KD", "KD")
+)
+
+dhx9_tb_score <- 3
+
+dhx9_log_fc <- run_dge_analysis(dhx9_sample_list, dhx9_tb_score, raw_rna_counts, raw_ribo_counts, "DHX9")
+
+results[["DHX9"]] <- dhx9_log_fc
+
+ythdf3_sample_list <- data.frame(
+  sample = c("GSM3944607", "GSM3944608", "GSM3944615", "GSM3944616", "GSM3944617"),
+  group = c("Ctrl", "Ctrl", "KD", "KD", "KD")
+)
+
+ythdf3_tb_score <- 3
+
+ythdf3_log_fc <- run_dge_analysis(ythdf3_sample_list, ythdf3_tb_score, raw_rna_counts, raw_ribo_counts, "YTHDF3")
+
+results[["YTHDF3"]] <- ythdf3_log_fc
+
+setd2_sample_list <- data.frame(
+  sample = c("GSM3450419", "GSM3450420", "GSM3450423", "GSM3450424"),
+  group = c("Ctrl", "Ctrl", "KD", "KD")
+)
+
+setd2_tb_score <- 3
+
+setd2_log_fc <- run_dge_analysis(setd2_sample_list, setd2_tb_score, raw_rna_counts, raw_ribo_counts, "SETD2")
+
+results[["SETD2"]] <- setd2_log_fc
+
+eif2b5_sample_list <- data.frame(
+  sample = c("GSM2883304", "GSM2883305", "GSM2883306", "GSM2883307", "GSM2883313", "GSM2883314", "GSM2883315", "GSM2883320", "GSM2883321", "GSM2883322", "GSM2883323"),
+  group = c("Ctrl", "KD", "Ctrl", "KD", "KD", "Ctrl", "KD", "Ctrl", "KD", "Ctrl", "KD")
+)
+
+eif2b5_tb_score <- 3
+
+eif2b5_log_fc <- run_dge_analysis(eif2b5_sample_list, eif2b5_tb_score, raw_rna_counts, raw_ribo_counts, "EIF2B5")
+
+results[["EIF2B5"]] <- eif2b5_log_fc
+
+ythdf1_sample_list <- data.frame(
+  sample = c("GSM4054749", "GSM4054750", "GSM4054751"),
+  group = c("KD", "KD", "Ctrl")
+)
+
+ythdf1_tb_score <- 3
+
+ythdf1_log_fc <- run_dge_analysis(ythdf1_sample_list, ythdf1_tb_score, raw_rna_counts, raw_ribo_counts, "YTHDF1")
+
+results[["YTHDF1"]] <- ythdf1_log_fc
+
+arntl_sample_list <- data.frame(
+  sample = c("GSM1371443", "GSM1371444", "GSM1371445", "GSM1371446", "GSM1371447", "GSM1371448", "GSM1371449", "GSM1371450", "GSM1371451", "GSM1371452", "GSM1371453", "GSM1371455", "GSM1371456", "GSM1371457", "GSM1371458", "GSM1371459", "GSM1371460", "GSM1371461", "GSM1371462", "GSM1371463", "GSM1371464", "GSM1371465", "GSM1371466", "GSM1371467", "GSM1371468", "GSM1371469", "GSM1371470", "GSM1371471", "GSM1371472", "GSM1371473", "GSM1371474", "GSM1371475", "GSM1371476", "GSM1371477", "GSM1371478", "GSM1371479", "GSM1371480", "GSM1371481", "GSM1371482", "GSM1371483", "GSM1371484", "GSM1371485", "GSM1371486", "GSM1371487", "GSM1371488", "GSM1371489", "GSM1371490"),
+  group = c("Ctrl", "Ctrl", "Ctrl", "Ctrl", "Ctrl", "Ctrl", "Ctrl", "Ctrl", "Ctrl", "Ctrl", "Ctrl", "Ctrl", "Ctrl", "Ctrl", "Ctrl", "Ctrl", "Ctrl", "Ctrl", "Ctrl", "Ctrl", "Ctrl", "Ctrl", "Ctrl", "KD", "KD", "KD", "KD", "KD", "KD", "KD", "KD", "KD", "KD", "KD", "KD", "KD", "KD", "KD", "KD", "KD", "KD", "KD", "KD", "KD", "KD", "KD", "KD")
+)
+
+arntl_tb_score <- 3
+
+arntl_log_fc <- run_dge_analysis(arntl_sample_list, arntl_tb_score, raw_rna_counts, raw_ribo_counts, "ARNTL")
+
+results[["ARNTL"]] <- arntl_log_fc
 
 
 
-data_rpl5 <- create_gene_data("rpl5", col_headers_rpl5, row_headers_rpl5, Ribosomeprofiling, RNAsequencing, Translationefficiency, control_rpl5)
-#--------------------------------------------------------------
-data_rplp1 <- create_gene_data("rplp1", col_headers_rplp1, row_headers_rplp1, Ribosomeprofiling, RNAsequencing, Translationefficiency, control_rplp1)
-#--------------------------------------------------------------
-data_rplp2 <- create_gene_data("rplp2", col_headers_rplp2, row_headers_rplp2, Ribosomeprofiling, RNAsequencing, Translationefficiency, control_rplp2)
-#--------------------------------------------------------------
-data_rps19 <- create_gene_data("rps19", col_headers_rps19, row_headers_rps19, Ribosomeprofiling, RNAsequencing, Translationefficiency, control_rps19)
-#--------------------------------------------------------------
-data_eif1 <- create_gene_data("eif1", col_headers_eif1, row_headers_eif1, Ribosomeprofiling, RNAsequencing, Translationefficiency, control_eif1)
-#--------------------------------------------------------------
-data_hnrnpc <- create_gene_data("hnrnpc", col_headers_hnrnpc, row_headers_hnrnpc, Ribosomeprofiling, RNAsequencing, Translationefficiency, control_hnrnpc)
-#--------------------------------------------------------------
-data_eif3e <- create_gene_data("eif3e", col_headers_eif3e, row_headers_eif3e, Ribosomeprofiling, RNAsequencing, Translationefficiency, control_eif3e)
-#--------------------------------------------------------------
-data_dhx36 <- create_gene_data("dhx36", col_headers_dhx36, row_headers_dhx36, Ribosomeprofiling, RNAsequencing, Translationefficiency, control_dhx36)
-#--------------------------------------------------------------
-data_dhx9 <- create_gene_data("dhx9", col_headers_dhx9, row_headers_dhx9, Ribosomeprofiling, RNAsequencing, Translationefficiency, control_dhx9)
-#--------------------------------------------------------------
-data_ythdf3 <- create_gene_data("ythdf3", col_headers_ythdf3, row_headers_ythdf3, Ribosomeprofiling, RNAsequencing, Translationefficiency, control_ythdf3)
-#--------------------------------------------------------------
-data_setd2 <- create_gene_data("setd2", col_headers_setd2, row_headers_setd2, Ribosomeprofiling, RNAsequencing, Translationefficiency, control_setd2)
-#--------------------------------------------------------------
-data_eif2b5 <- create_gene_data("eif2b5", col_headers_eif2b5, row_headers_eif2b5, Ribosomeprofiling, RNAsequencing, Translationefficiency, control_eif2b5)
-#--------------------------------------------------------------
-data_ythdf1 <- create_gene_data("ythdf1", col_headers_ythdf1, row_headers_ythdf1, Ribosomeprofiling, RNAsequencing, Translationefficiency, control_ythdf1)
-#--------------------------------------------------------------
-data_arntl <- create_gene_data("arntl", col_headers_arntl, row_headers_arntl, Ribosomeprofiling, RNAsequencing, Translationefficiency, control_arntl)
-#--------------------------------------------------------------
-data_mettl3 <- create_gene_data("mettl3", col_headers_mettl3, row_headers_mettl3, Ribosomeprofiling, RNAsequencing, Translationefficiency, control_mettl3)
-#--------------------------------------------------------------
-data_kbtbd8 <- create_gene_data("kbtbd8", col_headers_kbtbd8, row_headers_kbtbd8, Ribosomeprofiling, RNAsequencing, Translationefficiency, control_kbtbd8)
-#--------------------------------------------------------------
-data_tcof1 <- create_gene_data("tcof1", col_headers_tcof1, row_headers_tcof1, Ribosomeprofiling, RNAsequencing, Translationefficiency, control_tcof1)
-#--------------------------------------------------------------
-data_fbl <- create_gene_data("fbl", col_headers_fbl, row_headers_fbl, Ribosomeprofiling, RNAsequencing, Translationefficiency, control_fbl)
-#--------------------------------------------------------------
-data_ythdf1_2 <- create_gene_data("ythdf1", col_headers_ythdf1_2, row_headers_ythdf1_2, Ribosomeprofiling, RNAsequencing, Translationefficiency, control_ythdf1_2)
-#--------------------------------------------------------------
-data_ythdf2 <- create_gene_data("ythdf2", col_headers_ythdf2, row_headers_ythdf2, Ribosomeprofiling, RNAsequencing, Translationefficiency, control_ythdf2)
-#--------------------------------------------------------------
-data_mettl14 <- create_gene_data("mettl14", col_headers_mettl14, row_headers_mettl14, Ribosomeprofiling, RNAsequencing, Translationefficiency, control_mettl14)
-#--------------------------------------------------------------
-data_fkbp10 <- create_gene_data("fkbp10", col_headers_fkbp10, row_headers_fkbp10, Ribosomeprofiling, RNAsequencing, Translationefficiency, control_fkbp10)
-#--------------------------------------------------------------
-data_pdcd4 <- create_gene_data("pdcd4", col_headers_pdcd4, row_headers_pdcd4, Ribosomeprofiling, RNAsequencing, Translationefficiency, control_pdcd4)
-#--------------------------------------------------------------
-data_slc3a2 <- create_gene_data("slc3a2", col_headers_slc3a2, row_headers_slc3a2, Ribosomeprofiling, RNAsequencing, Translationefficiency, control_slc3a2)
-#--------------------------------------------------------------
-data_eif2a <- create_gene_data("eif2a", col_headers_eif2a, row_headers_eif2a, Ribosomeprofiling, RNAsequencing, Translationefficiency, control_eif2a)
-#--------------------------------------------------------------
-data_ddx3x <- create_gene_data("ddx3x", col_headers_ddx3x, row_headers_ddx3x, Ribosomeprofiling, RNAsequencing, Translationefficiency, control_ddx3x)
+tcof1_sample_list <- data.frame(
+  sample = c("GSM1782874", "GSM1782875", "GSM1782877", "GSM1782878", "GSM1782880"),
+  group = c("Ctrl", "Ctrl", "KD", "Ctrl", "KD")
+)
+
+tcof1_tb_score <- 3
+
+tcof1_log_fc <- run_dge_analysis(tcof1_sample_list, tcof1_tb_score, raw_rna_counts, raw_ribo_counts, "TCOF1")
+
+results[["TCOF1"]] <- tcof1_log_fc
+
+fbl_sample_list <- data.frame(
+  sample = c("GSM2825128", "GSM2825129", "GSM2825131", "GSM2825132"),
+  group = c("Ctrl", "KD", "KD", "Ctrl")
+)
+
+fbl_tb_score <- 3
+
+fbl_log_fc <- run_dge_analysis(fbl_sample_list, fbl_tb_score, raw_rna_counts, raw_ribo_counts, "FBL")
+
+results[["FBL"]] <- fbl_log_fc
+
+ythdf1_sample_list <- data.frame(
+  sample = c("GSM3944607", "GSM3944608", "GSM3944609", "GSM3944610", "GSM3944611"),
+  group = c("Ctrl", "Ctrl", "KD", "KD", "KD")
+)
+
+ythdf1_tb_score <- 3
+
+ythdf1_log_fc <- run_dge_analysis(ythdf1_sample_list, ythdf1_tb_score, raw_rna_counts, raw_ribo_counts, "YTHDF1")
+
+results[["YTHDF1"]] <- ythdf1_log_fc
+
+ythdf2_sample_list <- data.frame(
+  sample = c("GSM3944607", "GSM3944608", "GSM3944613", "GSM3944614"),
+  group = c("Ctrl", "Ctrl", "KD", "KD")
+)
+
+ythdf2_tb_score <- 3
+
+ythdf2_log_fc <- run_dge_analysis(ythdf2_sample_list, ythdf2_tb_score, raw_rna_counts, raw_ribo_counts, "YTHDF2")
+
+results[["YTHDF2"]] <- ythdf2_log_fc
+
+mettl14_sample_list <- data.frame(
+  sample = c("GSM3450419", "GSM3450420", "GSM3450421", "GSM3450422"),
+  group = c("Ctrl", "Ctrl", "KD", "KD")
+)
+
+mettl14_tb_score <- 3
+
+mettl14_log_fc <- run_dge_analysis(mettl14_sample_list, mettl14_tb_score, raw_rna_counts, raw_ribo_counts, "METTL14")
+
+results[["METTL14"]] <- mettl14_log_fc
+
+fkbp10_sample_list <- data.frame(
+  sample = c("GSM3718424", "GSM3718425", "GSM3718426", "GSM3718427"),
+  group = c("Ctrl", "Ctrl", "KD", "KD")
+)
+
+fkbp10_tb_score <- 3
+
+fkbp10_log_fc <- run_dge_analysis(fkbp10_sample_list, fkbp10_tb_score, raw_rna_counts, raw_ribo_counts, "FKBP10")
+
+results[["FKBP10"]] <- fkbp10_log_fc
+
+pdcd4_sample_list <- data.frame(
+  sample = c("GSM4110755", "GSM4110757", "GSM4110758", "GSM4110759", "GSM4110760"),
+  group = c("KD", "KD", "Ctrl", "Ctrl", "Ctrl")
+)
+
+pdcd4_tb_score <- 3
+
+pdcd4_log_fc <- run_dge_analysis(pdcd4_sample_list, pdcd4_tb_score, raw_rna_counts, raw_ribo_counts, "PDCD4")
+
+results[["PDCD4"]] <- pdcd4_log_fc
 
 
 
+eif2a_sample_list <- data.frame(
+  sample = c("GSM5291928", "GSM5291929", "GSM5291930", "GSM5291931", "GSM5291932", "GSM5291933"),
+  group = c("Ctrl", "Ctrl", "KD", "KD", "KD", "KD")
+)
 
-#Calculate the Mean of The Data and Center it at x = 0
-# Create a function to calculate summary data
-calculate_summary <- function(data, gene) {
-  data %>%
-    group_by(Control) %>%
-    summarise(
-      mean_RNAseq = mean(get(paste0("RNAseq_", gene))),
-      mean_Riboprof = mean(get(paste0("Riboprof_", gene))),
-      mean_Transeff = mean(get(paste0("Transeff_", gene)))
-    ) %>%
-    ungroup() %>%
-    mutate(
-      # Normalizes the data to the control grouup value, making it better to visualize the knockdown perturbaration
-      mean_RNAseq = ifelse(Control == "notcontrol", mean_RNAseq - mean(mean_RNAseq[Control == "control"]), -1 * mean(mean_RNAseq[Control == "control"])),
-      mean_Riboprof = ifelse(Control == "notcontrol", mean_Riboprof - mean(mean_Riboprof[Control == "control"]), -1 * mean(mean_Riboprof[Control == "control"])),
-      mean_Transeff = ifelse(Control == "notcontrol", mean_Transeff - mean(mean_Transeff[Control == "control"]), -1 * mean(mean_Transeff[Control == "control"])),
-      mean_RNAseq = ifelse(Control == "control", 0, mean_RNAseq),
-      mean_Riboprof = ifelse(Control == "control", 0, mean_Riboprof),
-      mean_Transeff = ifelse(Control == "control", 0, mean_Transeff)
-    )
-}
+eif2a_tb_score <- 3
 
-summary_data_rpl5 <- calculate_summary(data_rpl5, "rpl5")
-summary_data_rplp1 <- calculate_summary(data_rplp1, "rplp1")
-summary_data_rplp2 <- calculate_summary(data_rplp2, "rplp2")
-summary_data_rps19 <- calculate_summary(data_rps19, "rps19")
-summary_data_eif1 <- calculate_summary(data_eif1, "eif1")
-summary_data_hnrnpc <- calculate_summary(data_hnrnpc, "hnrnpc")
-summary_data_eif3e <- calculate_summary(data_eif3e, "eif3e")
-summary_data_dhx36 <- calculate_summary(data_dhx36, "dhx36")
-summary_data_dhx9 <- calculate_summary(data_dhx9, "dhx9")
-summary_data_ythdf3 <- calculate_summary(data_ythdf3, "ythdf3")
-summary_data_setd2 <- calculate_summary(data_setd2, "setd2")
-summary_data_eif2b5 <- calculate_summary(data_eif2b5, "eif2b5")
-summary_data_ythdf1 <- calculate_summary(data_ythdf1, "ythdf1")
-summary_data_arntl <- calculate_summary(data_arntl, "arntl")
-summary_data_mettl3 <- calculate_summary(data_mettl3, "mettl3")
-summary_data_kbtbd8 <- calculate_summary(data_kbtbd8, "kbtbd8")
-summary_data_tcof1 <- calculate_summary(data_tcof1, "tcof1")
-summary_data_fbl <- calculate_summary(data_fbl, "fbl")
-summary_data_ythdf1_2 <- calculate_summary(data_ythdf1_2, "ythdf1")
-summary_data_ythdf2 <- calculate_summary(data_ythdf2, "ythdf2")
-summary_data_mettl14 <- calculate_summary(data_mettl14, "mettl14")
-summary_data_fkbp10 <- calculate_summary(data_fkbp10, "fkbp10")
-summary_data_pdcd4 <- calculate_summary(data_pdcd4, "pdcd4")
-summary_data_slc3a2 <- calculate_summary(data_slc3a2, "slc3a2")
-summary_data_eif2a <- calculate_summary(data_eif2a, "eif2a")
-summary_data_ddx3x <- calculate_summary(data_ddx3x, "ddx3x")
+eif2a_log_fc <- run_dge_analysis(eif2a_sample_list, eif2a_tb_score, raw_rna_counts, raw_ribo_counts, "EIF2A")
 
-#Standardize the Columns Naming
-colnames(summary_data_rpl5) <- c("Control", "RNAseq", "Riboprof", "Transeff")
-colnames(summary_data_rplp1) <- c("Control", "RNAseq", "Riboprof", "Transeff")
-colnames(summary_data_rplp2) <- c("Control", "RNAseq", "Riboprof", "Transeff")
-colnames(summary_data_rps19) <- c("Control", "RNAseq", "Riboprof", "Transeff")
-colnames(summary_data_eif1) <- c("Control", "RNAseq", "Riboprof", "Transeff")
-colnames(summary_data_hnrnpc) <- c("Control", "RNAseq", "Riboprof", "Transeff")
-colnames(summary_data_eif3e) <- c("Control", "RNAseq", "Riboprof", "Transeff")
-colnames(summary_data_dhx36) <- c("Control", "RNAseq", "Riboprof", "Transeff")
-colnames(summary_data_dhx9) <- c("Control", "RNAseq", "Riboprof", "Transeff")
-colnames(summary_data_ythdf3) <- c("Control", "RNAseq", "Riboprof", "Transeff")
-colnames(summary_data_setd2) <- c("Control", "RNAseq", "Riboprof", "Transeff")
-colnames(summary_data_eif2b5) <- c("Control", "RNAseq", "Riboprof", "Transeff")
-colnames(summary_data_ythdf1) <- c("Control", "RNAseq", "Riboprof", "Transeff")
-colnames(summary_data_arntl) <- c("Control", "RNAseq", "Riboprof", "Transeff")
-colnames(summary_data_mettl3) <- c("Control", "RNAseq", "Riboprof", "Transeff")
-colnames(summary_data_kbtbd8) <- c("Control", "RNAseq", "Riboprof", "Transeff")
-colnames(summary_data_tcof1) <- c("Control", "RNAseq", "Riboprof", "Transeff")
-colnames(summary_data_fbl) <- c("Control", "RNAseq", "Riboprof", "Transeff")
-colnames(summary_data_ythdf1_2) <- c("Control", "RNAseq", "Riboprof", "Transeff")
-colnames(summary_data_ythdf2) <- c("Control", "RNAseq", "Riboprof", "Transeff")
-colnames(summary_data_mettl14) <- c("Control", "RNAseq", "Riboprof", "Transeff")
-colnames(summary_data_fkbp10) <- c("Control", "RNAseq", "Riboprof", "Transeff")
-colnames(summary_data_pdcd4) <- c("Control", "RNAseq", "Riboprof", "Transeff")
-colnames(summary_data_slc3a2) <- c("Control", "RNAseq", "Riboprof", "Transeff")
-colnames(summary_data_eif2a) <- c("Control", "RNAseq", "Riboprof", "Transeff")
-colnames(summary_data_ddx3x) <- c("Control", "RNAseq", "Riboprof", "Transeff")
+results[["EIF2A"]] <- eif2a_log_fc
 
-#Combine All the Data to One Table
-combined_data <- rbind(
-  cbind(summary_data_rpl5, Gene = "RPL5", Bufferingscore = "1"),
-  cbind(summary_data_rplp1, Gene = "RPLP1", Bufferingscore = "1"),
-  cbind(summary_data_rplp2, Gene = "RPLP2", Bufferingscore = "1"),
-  cbind(summary_data_rps19, Gene = "RPS19", Bufferingscore = "1"),
-  cbind(summary_data_eif1, Gene = "EIF1", Bufferingscore = "1"),
-  cbind(summary_data_hnrnpc, Gene = "HNRNPC", Bufferingscore = "1"),
-  cbind(summary_data_eif3e, Gene = "EIF3E", Bufferingscore = "2"),
-  cbind(summary_data_dhx36, Gene = "DHX36", Bufferingscore = "3"),
-  cbind(summary_data_dhx9, Gene = "DHX9", Bufferingscore = "3"),
-  cbind(summary_data_ythdf3, Gene = "YTHDF3", Bufferingscore = "3"),
-  cbind(summary_data_setd2, Gene = "SETD2", Bufferingscore = "3"),
-  cbind(summary_data_eif2b5, Gene = "EIF2B5", Bufferingscore = "3"),
-  cbind(summary_data_ythdf1, Gene = "YTHDF1", Bufferingscore = "3"),
-  cbind(summary_data_arntl, Gene = "ARNTL", Bufferingscore = "3"),
-  cbind(summary_data_mettl3, Gene = "METTL3", Bufferingscore = "3"),
-  cbind(summary_data_kbtbd8, Gene = "KBTBD8", Bufferingscore = "3"),
-  cbind(summary_data_tcof1, Gene = "TCOF1", Bufferingscore = "3"),
-  cbind(summary_data_fbl, Gene = "FBL", Bufferingscore = "3"),
-  cbind(summary_data_ythdf1_2, Gene = "YTHDF1_2", Bufferingscore = "3"),
-  cbind(summary_data_ythdf2, Gene = "YTHDF2", Bufferingscore = "3"),
-  cbind(summary_data_mettl14, Gene = "METTL14", Bufferingscore = "3"),
-  cbind(summary_data_fkbp10, Gene = "FKBP10", Bufferingscore = "3"),
-  cbind(summary_data_pdcd4, Gene = "PDCD4", Bufferingscore = "3"),
-  cbind(summary_data_slc3a2, Gene = "SLC3A2", Bufferingscore = "3"),
-  cbind(summary_data_eif2a, Gene = "EIF2A", Bufferingscore = "3"),
-  cbind(summary_data_ddx3x, Gene = "DDX3X", Bufferingscore = "3"))
+ddx3x_sample_list <- data.frame(
+  sample = c("GSM4258310", "GSM4258311", "GSM4258312", "GSM4258314", "GSM4258315", "GSM4258316", "GSM4258317", "GSM4258319"),
+  group = c("Ctrl", "Ctrl", "Ctrl", "KD", "KD", "KD", "KD", "KD")
+)
 
+ddx3x_tb_score <- 3
 
-#Filter combined_data based on conditions
-filtered_combined_data <- combined_data %>%
-  filter(!(Control == "notcontrol" & RNAseq > 0))
+ddx3x_log_fc <- run_dge_analysis(ddx3x_sample_list, ddx3x_tb_score, raw_rna_counts, raw_ribo_counts, "DDX3X")
 
-#If the not control is greater than 0, then the knockdown did not work, exclude it from the graph
+results[["DDX3X"]] <- ddx3x_log_fc
 
+final_table <- bind_rows(results, .id = "gene")
 
-# Translation Efficiency Average vs RNA Abundance Graph ~ Facet Wrappped
+final_table <- final_table |>
+  mutate(sig = if_else(RNAPvalue <= 0.05 & RiboPvalue <= 0.05, TRUE, FALSE))
 
-ggplot(filtered_combined_data, aes(x = RNAseq, y = Transeff, color = Bufferingscore)) +
-  geom_point() +
-  geom_smooth(aes(group = interaction(Bufferingscore, Gene)), method = 'lm', formula = y ~ x, se = FALSE) +
-  scale_x_reverse(expand = c(0.1, 0.1)) +  # Reverse the x-axis
-  scale_y_continuous(expand = c(0.1, 0.1)) +  # Zoom out on the y-axis
-  labs(title = "Translation Efficiency Average vs RNA Abundance Average",
-       x = "RNA Abundance",
-       y = "Translation Efficiency") +
+siRNA_RNA_Ribo= ggplot(final_table, aes(x = RNAlogFC, y = RibologFC, color = factor(TB_score))) +
+  geom_point(size = 3, alpha = 0.7) +
+  geom_abline(intercept = 0, slope = 1, linetype = "dashed", color = "black") + # slope = 1
+  scale_color_manual(values = c("1" = "#045275", "2" = "#089099", "3" = "#B7E6A5"),
+                     name = "TB Score") +
+  scale_x_reverse(limits = c(1, -5), breaks = seq(0, -5, by = -2)) +   # reversed with limits
+  scale_y_reverse(limits = c(1.5, -9), breaks = seq(2,-9, by = -2)) +  # reversed with limits
+  labs(title = "", 
+       x = "RNA logFC", 
+       y = "Ribo logFC") +
   theme(
     axis.text = element_text(size = 12),
     axis.title = element_text(size = 12),
@@ -2150,23 +2237,68 @@ ggplot(filtered_combined_data, aes(x = RNAseq, y = Transeff, color = Bufferingsc
     panel.grid = element_blank(),
     panel.border = element_rect(color = "black", size = 1, fill = NA),
     panel.spacing = unit(0.5, "lines"),
-    legend.position = "top"  # Position the legend at the top
-  )  +
-  facet_wrap(~ Bufferingscore, ncol = 3)
+    legend.position = "none"
+  )
 
-siRNA_RNA_Ribo= ggplot(filtered_combined_data, aes(x = RNAseq, y = Riboprof, color = Bufferingscore)) +
-  geom_point() +
-  geom_smooth(aes(group = interaction(Bufferingscore, Gene)), method = 'lm', formula = y ~ x, se = FALSE) +
-  scale_x_reverse(expand = c(0.1, 0.1)) +  # Reverse the x-axis
-  scale_y_continuous(expand = c(0.1, 0.1)) +  # Zoom out on the y-axis
-  labs(
-    x = "Δ mRNA abundance",
-    y = "Δ Ribosome Occuppancy") +
-  theme(axis.text = element_text(size = 12),
-        axis.title = element_text(size = 12),
-        plot.title = element_text(hjust = 0.5),panel.background = element_rect(fill = "white"),panel.grid = element_blank(),panel.border = element_rect(color = "black", size = 1, fill = NA),panel.spacing = unit(0.5, "lines")) +scale_color_manual(values = c("#045275", "#089099", "#B7E6A5"))+
-  facet_wrap(~ Bufferingscore, ncol = 3)+theme(legend.position ="none")
+# Define custom glyph (point + slash)
+slashed_point <- function(data, params, size) {
+  grid::grobTree(
+    # base point
+    grid::pointsGrob(0.5, 0.5, pch = 16, size = unit(3, "mm")),  
+    
+    # horizontal slash through the middle
+    grid::segmentsGrob(x0 = 0, y0 = 0.5,   # start at left-middle
+                       x1 = 1, y1 = 0.5,   # end at right-middle
+                       gp = grid::gpar(lwd = 1))
+  )
+}
+
+# Tell ggplot to use this glyph
+GeomSegment$draw_key <- slashed_point
+
+siRNA_RNA_Ribo= ggplot(final_table, aes(x = RNAlogFC, 
+                        y = RibologFC, 
+                        color = factor(TB_score))) +
+  geom_point(size = 3, alpha = 0.7) +
+  
+  # Slash overlay for RNA significant
+  geom_segment(data = subset(final_table, sig == FALSE),
+               aes(x = RNAlogFC - 0.1, y = RibologFC - 0.02,
+                   xend = RNAlogFC + 0.1, yend = RibologFC - 0.02,
+                   linetype = "RNA/Ribo"),  # ensures legend entry
+               inherit.aes = FALSE, color = "black", linewidth = 0.6) +
+  geom_abline(intercept = 0, slope = 1, linetype = "dashed", color = "black") +
+  
+  scale_color_manual(values = c("1" = "#045275", "2" = "#089099", "3" = "#B7E6A5"),
+                     name = "TB Score") +
+  scale_linetype_manual(values = c("RNA/Ribo" = "solid"), labels = NULL,
+                        name = "RNA/Ribo p > 0.05") +
+  
+  guides(
+    color   = guide_legend(order = 1, override.aes = list(size = 3)),
+    linetype= guide_legend(order = 3, override.aes = list(size = 3))
+  ) +
+  
+  scale_x_reverse(limits = c(1, -5), breaks = seq(0, -5, by = -2)) +
+  scale_y_reverse(limits = c(1.5, -9), breaks = seq(2, -9, by = -2)) +
+  labs(title = "", 
+       x = "RNA logFC", 
+       y = "Ribo logFC") +
+  theme(
+    axis.text = element_text(size = 12),
+    axis.title = element_text(size = 12),
+    plot.title = element_text(hjust = 0.5),
+    panel.background = element_rect(fill = "white"),
+    panel.grid = element_blank(),
+    panel.border = element_rect(color = "black", size = 1, fill = NA),
+    panel.spacing = unit(0.5, "lines"),
+    legend.position = "top"   # if you want to hide all legends
+  )
+
+
 siRNA_RNA_Ribo
+
+
 
 
 
@@ -2175,7 +2307,7 @@ siRNA_RNA_Ribo
 library(gghalves)
 
 # Figure 5 
-Array.ribo = Ribo("./all.ribo")
+Array.ribo = Ribo("C:/Users/sjr2797/Box/Cenik lab_Shilpa/FUS/Buffering MS/all.ribo")
 rnaseq_CDS <- get_rnaseq(ribo.object = Array.ribo,
                          tidy        = TRUE,
                          region      = "CDS",
@@ -2670,6 +2802,80 @@ half_life_subcellular= ggplot(data_long_clean, aes(Variable, Value, fill=factor(
 half_life_subcellular
 
 
+#significance
+
+#for chromatin
+data_long_clean_chromatin= subset(data_long_clean, data_long_clean$Variable=="Chromatin")
+p_chromatin= data_long_clean_chromatin  %>%
+  summarise(
+    TB1_TB2 = wilcox.test(`Value` ~ Buffering, data_long_clean_chromatin  = .,
+                          subset = Buffering %in% c("TB1", "TB2"))$p.value,
+    TB1_TB3 = wilcox.test(`Value` ~ Buffering, data_long_clean_chromatin = .,
+                          subset = Buffering %in% c("TB1", "TB3"))$p.value,
+    TB2_TB3 = wilcox.test(`Value` ~ Buffering, data_long_clean_chromatin= .,
+                          subset = Buffering %in% c("TB2", "TB3"))$p.value
+  )
+
+# For nucleoplasm
+data_long_clean_Nucleoplasm= subset(data_long_clean, data_long_clean$Variable=="Nucleoplasm")
+p_nucleoplasm=data_long_clean_Nucleoplasm  %>%
+  summarise(
+    TB1_TB2 = wilcox.test(`Value` ~ Buffering, data_long_clean_Nucleoplasm = .,
+                          subset = Buffering %in% c("TB1", "TB2"))$p.value,
+    TB1_TB3 = wilcox.test(`Value` ~ Buffering, data_long_clean_Nucleoplasm = .,
+                          subset = Buffering %in% c("TB1", "TB3"))$p.value,
+    TB2_TB3 = wilcox.test(`Value` ~ Buffering, data_long_clean_Nucleoplasm= .,
+                          subset = Buffering %in% c("TB2", "TB3"))$p.value
+  )
+
+
+
+# For Cytoplasm
+data_long_clean_Cytoplasm= subset(data_long_clean, data_long_clean$Variable=="Cytoplasm")
+p_cytoplasm= data_long_clean_Cytoplasm  %>%
+  summarise(
+    TB1_TB2 = wilcox.test(`Value` ~ Buffering, data_long_clean_Cytoplasm  = .,
+                          subset = Buffering %in% c("TB1", "TB2"))$p.value,
+    TB1_TB3 = wilcox.test(`Value` ~ Buffering, data_long_clean_Cytoplasm = .,
+                          subset = Buffering %in% c("TB1", "TB3"))$p.value,
+    TB2_TB3 = wilcox.test(`Value` ~ Buffering, data_long_clean_Cytoplasm= .,
+                          subset = Buffering %in% c("TB2", "TB3"))$p.value
+  )
+
+# For Untranslated Cytoplasm
+data_long_clean_Untranslated_Cytoplasm= subset(data_long_clean, data_long_clean$Variable=="Untranslated Cytoplasm")
+p_untranslated_cytoplasm= data_long_clean_Untranslated_Cytoplasm  %>%
+  summarise(
+    TB1_TB2 = wilcox.test(`Value` ~ Buffering, data_long_clean_long_Untranslated_Cytoplasm  = .,
+                          subset = Buffering %in% c("TB1", "TB2"))$p.value,
+    TB1_TB3 = wilcox.test(`Value` ~ Buffering, data_long_clean_long_Untranslated_Cytoplasm = .,
+                          subset = Buffering %in% c("TB1", "TB3"))$p.value,
+    TB2_TB3 = wilcox.test(`Value` ~ Buffering, data_long_clean_long_Untranslated_Cytoplasm= .,
+                          subset = Buffering %in% c("TB2", "TB3"))$p.value
+  )
+
+# to represent on the figure, perform BOnferroni's correction
+combined_p= as.data.frame(rbind(p_chromatin,p_cytoplasm,p_nucleoplasm,p_untranslated_cytoplasm))
+row.names(combined_p)= c("p_chromatin","p_cytoplasm","p_nucleoplasm","p_untranslated_cytoplasm")
+
+#perform BOnferroni's correction (as 12 observation)
+0.05/12
+# which values are less than 
+combined_p_True= combined_p <= 0.05/12
+
+
+# to ensure data points are not abruptly cut in the figure, replace values with 300 or >300 with 300 
+# replace value
+data_long_clean$Value[data_long_clean$Value >= 300] <- 300
+half_life_subcellular= ggplot(data_long_clean, aes(Variable, Value, fill=factor(Buffering)))+geom_boxplot()+scale_fill_manual(values = c("#045275", "#089099", "#B7E6A5"))+labs( y = "Average minutes")+theme(axis.text = element_text(size = 12),
+                                                                                                                                                                                                              
+                                                                                                                                                                                                              axis.title = element_text(size = 12),
+                                                                                                                                                                                                              plot.title = element_text(hjust = 0.5),panel.background = element_rect(fill = "white"),panel.grid = element_blank(),panel.border = element_rect(color = "black", size = 1, fill = NA),panel.spacing = unit(0.5, "lines"))+theme(legend.position ="none")+coord_cartesian(ylim=c(0,300))+scale_x_discrete(limits = c("Chromatin", "Nucleoplasm", "Cytoplasm", "Untranslated Cytoplasm"))
+half_life_subcellular
+
+
+
+
 # calculate the median 
 data_long_clean_TB3= data_long_clean[data_long_clean$Buffering=="TB3",]
 median(subset(data_long_clean_TB3, data_long_clean_TB3$Variable=="Cytoplasm")$Value)
@@ -2769,26 +2975,79 @@ Subcellular_matched_plot=ggplot(data_matched_long, aes(x = Variable, y = Value, 
                                      axis.title = element_text(size = 12),
                                      plot.title = element_text(hjust = 0.5),panel.background = element_rect(fill = "white"),panel.grid = element_blank(),panel.border = element_rect(color = "black", size = 1, fill = NA),panel.spacing = unit(0.5, "lines"))+theme(legend.position ="none")+coord_cartesian(ylim=c(0,350))+scale_x_discrete(limits = c("Chromatin", "Nucleoplasm", "Cytoplasm", "Untranslated Cytoplasm"))
 Subcellular_matched_plot
+#significance
+
+#for chromatin
+data_matched_long_chromatin= subset(data_matched_long, data_matched_long$Variable=="Chromatin")
+p_chromatin= data_matched_long_chromatin  %>%
+  summarise(
+    TB1_TB2 = wilcox.test(`Value` ~ Buffering, data_matched_long_chromatin  = .,
+                          subset = Buffering %in% c("TB1", "TB2"))$p.value,
+    TB1_TB3 = wilcox.test(`Value` ~ Buffering, data_matched_long_chromatin = .,
+                          subset = Buffering %in% c("TB1", "TB3"))$p.value,
+    TB2_TB3 = wilcox.test(`Value` ~ Buffering, data_matched_long_chromatin= .,
+                          subset = Buffering %in% c("TB2", "TB3"))$p.value
+  )
+
+# For nucleoplasm
+data_matched_long_Nucleoplasm= subset(data_matched_long, data_matched_long$Variable=="Nucleoplasm")
+p_nucleoplasm=data_matched_long_Nucleoplasm  %>%
+  summarise(
+    TB1_TB2 = wilcox.test(`Value` ~ Buffering, data_matched_long_Nucleoplasm  = .,
+                          subset = Buffering %in% c("TB1", "TB2"))$p.value,
+    TB1_TB3 = wilcox.test(`Value` ~ Buffering, data_matched_long_Nucleoplasm = .,
+                          subset = Buffering %in% c("TB1", "TB3"))$p.value,
+    TB2_TB3 = wilcox.test(`Value` ~ Buffering, data_matched_long_Nucleoplasm= .,
+                          subset = Buffering %in% c("TB2", "TB3"))$p.value
+  )
+
+
+
+# For Cytoplasm
+data_matched_long_Cytoplasm= subset(data_matched_long, data_matched_long$Variable=="Cytoplasm")
+p_cytoplasm= data_matched_long_Cytoplasm  %>%
+  summarise(
+    TB1_TB2 = wilcox.test(`Value` ~ Buffering, data_matched_long_Cytoplasm  = .,
+                          subset = Buffering %in% c("TB1", "TB2"))$p.value,
+    TB1_TB3 = wilcox.test(`Value` ~ Buffering, data_matched_long_Cytoplasm = .,
+                          subset = Buffering %in% c("TB1", "TB3"))$p.value,
+    TB2_TB3 = wilcox.test(`Value` ~ Buffering, data_matched_long_Cytoplasm= .,
+                          subset = Buffering %in% c("TB2", "TB3"))$p.value
+  )
+
+# For Untranslated Cytoplasm
+data_matched_long_Untranslated_Cytoplasm= subset(data_matched_long, data_matched_long$Variable=="Untranslated Cytoplasm")
+p_untranslated_cytoplasm= data_matched_long_Untranslated_Cytoplasm  %>%
+  summarise(
+    TB1_TB2 = wilcox.test(`Value` ~ Buffering, data_matched_long_Untranslated_Cytoplasm  = .,
+                          subset = Buffering %in% c("TB1", "TB2"))$p.value,
+    TB1_TB3 = wilcox.test(`Value` ~ Buffering, data_matched_long_Untranslated_Cytoplasm = .,
+                          subset = Buffering %in% c("TB1", "TB3"))$p.value,
+    TB2_TB3 = wilcox.test(`Value` ~ Buffering, data_matched_long_Untranslated_Cytoplasm= .,
+                          subset = Buffering %in% c("TB2", "TB3"))$p.value
+  )
+
+# to represent on the figure, perform BOnferroni's correction
+combined_p= as.data.frame(rbind(p_chromatin,p_cytoplasm,p_nucleoplasm,p_untranslated_cytoplasm))
+row.names(combined_p)= c("p_chromatin","p_cytoplasm","p_nucleoplasm","p_untranslated_cytoplasm")
+
+#perform BOnferroni's correction (as 12 observation)
+0.05/12
+# which values are less than 
+combined_p_True= combined_p <= 0.05/12
+
 # calculate the median 
-data_matched_long_TB1= data_matched_long[data_matched_long$Buffering=="TB1",]
+data_matched_long_TB1= data_matched_long[data_matched_long$Buffering=="TB3",]
 median(subset(data_matched_long_TB1, data_matched_long_TB1$Variable=="Nucleoplasm")$Value)
-
-
-#parallel plot
-
-library(GGally)
-ggparcoord(data_matched, 
-           columns = 3:7,    # The 5 gene-related variables
-           groupColumn = "Buffering",  # Column to color by (7th column: "Group")
-           scale = "globalminmax",    # Standardizes values for better comparison
-           alphaLines = 0.6  # Transparency of lines
-) +
-  theme_minimal() +
-  labs(title = "Parallel Coordinate Plot of Gene Data",
-       x = "Gene-related Variables",
-       y = "Standardized Values") +
-  scale_color_manual(values = c("TB1" = "blue", "TB2" = "red", "TB3" = "green"))+ylim(0,300)+
-  facet_wrap(~ Buffering)
+# to ensure data points are not abruptly cut in the figure, replace values with 300 or >300 with 300 
+# replace value
+data_matched_long$Value[data_matched_long$Value >= 300] <- 300
+Subcellular_matched_plot=ggplot(data_matched_long, aes(x = Variable, y = Value, fill= Buffering)) +
+  geom_boxplot()+scale_fill_manual(values = c("#045275", "#089099", "#B7E6A5"))+
+  labs( y = "Time in minutes")+theme(axis.text = element_text(size = 12),
+                                     axis.title = element_text(size = 12),
+                                     plot.title = element_text(hjust = 0.5),panel.background = element_rect(fill = "white"),panel.grid = element_blank(),panel.border = element_rect(color = "black", size = 1, fill = NA),panel.spacing = unit(0.5, "lines"))+theme(legend.position ="none")+coord_cartesian(ylim=c(0,350))+scale_x_discrete(limits = c("Chromatin", "Nucleoplasm", "Cytoplasm", "Untranslated Cytoplasm"))
+Subcellular_matched_plot
 
 
 #MOUSE
@@ -3525,6 +3784,10 @@ RNA_MAD_mouse
 
 
 
+
+
+
+
 Figure1a= plot_grid(TE_RNA_nond, TE_RNA_nond_mouse+theme(axis.title.y = element_blank(),axis.text.y = element_blank(),axis.ticks.y= element_blank() ), MAD_ratio_plot_human, MAD_ratio_plot_mouse+theme(axis.title.y = element_blank(),axis.text.y = element_blank(),axis.ticks.y= element_blank() ),MAD_table_plot_human, MAD_table_plot_mouse+theme(axis.title.y = element_blank(),axis.text.y = element_blank(),axis.ticks.y= element_blank() ),
                     ncol = 2,
                     rel_widths = c(1.2,1,1.2,1,1.2,1),  # Adjust widths
@@ -3573,11 +3836,11 @@ Figure2
 
 
 
-Sup_Figure2 <- plot_grid(
-  plot_grid(Combined_length_GC, Combined_GC_mouse+theme(axis.title.y = element_blank(),axis.text.y = element_blank(),axis.ticks.y= element_blank()), RNA_MAD_human, RNA_MAD_mouse+theme(axis.title.y = element_blank(),axis.text.y = element_blank(),axis.ticks.y= element_blank()), ncol=2, labels = c('A', 'B','C','D'), label_size =12, rel_widths = c(1, 1),  # Adjust widths
+Sup_Figure2 <-
+  plot_grid(CDS_length_moving, UTR3_len_moving, Combined_length_GC, Combined_GC_mouse+theme(axis.title.y = element_blank(),axis.text.y = element_blank(),axis.ticks.y= element_blank()), RNA_MAD_human, RNA_MAD_mouse+theme(axis.title.y = element_blank(),axis.text.y = element_blank(),axis.ticks.y= element_blank()), ncol=2, labels = c('A', 'B','C','D'), label_size =12, rel_widths = c(1, 1),  # Adjust widths
             rel_heights = c(1, 1)) 
   # Adjust heights
-)
+
 
 
 
@@ -3601,8 +3864,8 @@ Figure3 <- plot_grid(NULL, final_plot, mad_values_Cell_2020_plot, mad_mouse,
 
 
 
-Sup_Figure4 = plot_grid(final_plot2, mad_values_Cell_2020_plot_matched+theme(axis.title.y = element_blank(),axis.text.y = element_blank(),axis.ticks.y= element_blank()) ,mad_mouse_matched_proteome +theme(axis.title.y = element_blank()),
-                        ncol = 3,
+Sup_Figure4 = plot_grid(Cancer_cell_moving_plot,Cell_2020_moving_plot+theme(axis.title.y = element_blank(),axis.text.y = element_blank(),axis.ticks.y= element_blank()), MAD_mouse_moving_plot+theme(axis.title.y = element_blank(),axis.text.y = element_blank(),axis.ticks.y= element_blank()),final_plot2, mad_values_Cell_2020_plot_matched+theme(axis.title.y = element_blank(),axis.text.y = element_blank(),axis.ticks.y= element_blank()) ,mad_mouse_matched_proteome +theme(axis.title.y = element_blank()),
+                        nrow=3, ncol = 3,
                         rel_widths = c(1.15, 0.9,1),  # Adjust widths
                     
                         labels = c('A','B', 'C'), label_size =12 
@@ -3680,7 +3943,7 @@ ggsave("Figure2.pdf", plot = Figure2, path = path, width = 10, height = 10,dpi=3
 ggsave("Sup_Figure2.pdf", plot =Sup_Figure2, path = path, width = 10, height = 10,dpi=300)
 ggsave("Figure3.pdf", plot = Figure3, path = path, width = 10, height = 10,dpi=300)
 ggsave("Sup_Figure3.pdf", plot =Sup_Figure3, path = path, width = 15, height = 6,dpi=300)
-ggsave("Sup_Figure4.pdf", plot =Sup_Figure4, path = path, width = 10, height = 5,dpi=300)
+ggsave("Sup_Figure4.pdf", plot =Sup_Figure4, path = path, width = 10, height = 10,dpi=300)
 ggsave("Sup_Figure5.pdf", plot =Sup_Figure5, path = path, width = 10, height = 10,dpi=300)
 ggsave("Figure4.pdf", plot = Figure4, path = path, width = 14, height = 10,dpi=300)
 ggsave("Figure5.pdf", plot = Figure5, path = path, width = 8, height = 5,dpi=300)
@@ -3714,8 +3977,8 @@ Protein_to_transcript <- read.csv("./gProfiler_mmusculus_protein_transcript.csv"
 
 # Formats the G_profiler File
 Protein_to_transcript <- Protein_to_transcript |>
-  rename(initial_alias= "PROTEIN_ID",
-        converted_alias= "Transcript_code")
+  rename("PROTEIN_ID"=initial_alias,
+        "Transcript_code"=converted_alias)
 
 Protein_to_transcript=  Protein_to_transcript[, c("PROTEIN_ID","Transcript_code", "name")]
 
@@ -3729,14 +3992,14 @@ Protein_abundance_transcript <- left_join(Protein_to_transcript, Protein_abundan
 
 # Formats the Appris data
 Appris_data <- Appris_data |>
-  rename(Transcript_Code = "Transcript_code")
+  rename("Transcript_code"=Transcript_Code)
 
 Protein_abundance_table <- left_join(Appris_data, Protein_abundance_transcript, by = "Transcript_code")
 
 # Remove any NA's during the transfer process and only takes the Gene names from the Appris data
 Protein_abundance_table <- filter(Protein_abundance_table, !is.na(PROTEIN_ID), PROTEIN_ID != "N/A") |>
   dplyr::select(!c("Length", "GENE_NAME")) |>
-  rename(name="GENE_NAME")
+  rename("GENE_NAME"=name)
 
 # Checks for duplicate genes
 Duplicate_genes <- Protein_abundance_table |>
@@ -3854,7 +4117,7 @@ Buffered_list <- Buffering_mouse_rank
 # Gives the order 1 for the first 250 rows then 2 for the next 250 rows
 Buffered_list <- Buffered_list |>
   rename(
-     transcript="GENE_NAME"
+     "GENE_NAME"=transcript
   ) |>
   mutate(Order = case_when(row_number() <= 250 ~ 1,
                         row_number() <= 500 ~ 2,
@@ -3983,7 +4246,7 @@ Mad_rna_table <- data.table(Rna_transcript_id, Median_rna, Mad_rna, Rna_NA)
 #Join the RNA and Protein Abundance Tables
 # Format the name to match the current Ribo table for matching
 Mad_rna_table <- Mad_rna_table |>
-  rename(Rna_transcript_id="Gene_Code")
+  rename("Gene_Code"=Rna_transcript_id)
 
 Mad_buffered_genes_joined <- left_join(Mad_buffered_genes, Mad_rna_table, by = "Gene_Code")
 
@@ -4036,4 +4299,718 @@ significance_data <- Mad_buffered_genes_matched %>%
   )
 significance_data
 
+# for ploting the corelation
+MAD_mouse_moving= merge(Mad_buffered_genes[, c("GENE_NAME", "Mad_protein", "Order")], Buffering_mouse_rank[, c("transcript","TB_rank_mouse")],by.x= "GENE_NAME", by.y= "transcript")
 
+
+MAD_mouse_moving_plot=ggplot(MAD_mouse_moving, aes(x = TB_rank_mouse, y = Mad_protein, color=Order))+geom_point()+
+  geom_smooth(method = "lm", se = FALSE, color ="black")+scale_color_manual(values = c("#AB1866", "#E05C5C", "#FCE1A4"))+
+  labs( y = "Median absolute deviation", x=" TB Rank")+theme(axis.text = element_text(size = 12),
+                                                             axis.title = element_text(size = 12),
+                                                             plot.title = element_text(hjust = 0.5),panel.background = element_rect(fill = "white"),panel.grid = element_blank(),panel.border = element_rect(color = "black", size = 1, fill = NA),panel.spacing = unit(0.5, "lines"))+
+  theme(legend.position ="none")+coord_cartesian(ylim=c(0,1.0))
+MAD_mouse_moving_plot
+
+
+
+# for supplementary figure 2 GO
+
+#GSEA 
+TB1_genes= Buffering_human_rank[Buffering_human_rank$Buffering=="TB_score=1",]
+TB2_genes= Buffering_human_rank[Buffering_human_rank$Buffering=="TB_score=2",]
+other_genes= Buffering_human_rank[Buffering_human_rank$Buffering=="TB_score=3",]
+
+
+ego=enrichGO(
+  gene     = TB1_genes$transcript,       # DE or interesting list
+  # full set of expressed genes
+  OrgDb    = org.Hs.eg.db,
+  universe = Buffering_human_rank$transcript,
+  keyType  = "SYMBOL",
+  ont      = "BP",
+  pAdjustMethod = "BH",
+  qvalueCutoff  = 0.05,
+  
+  readable      = TRUE
+)
+ego
+
+dotplot(ego, showCategory = 10)
+
+s_ego<-clusterProfiler::simplify(ego)
+s_ego
+
+s_ego_human <- as_tibble(s_ego)
+
+
+
+human_GO_plot= dotplot(s_ego,showCategory=20,label_format=70)+
+  scale_size_continuous(range=c(1, 7))+
+  theme(axis.text = element_text(size = 12),
+        axis.title = element_text(size = 12),
+        plot.title = element_text(hjust = 0.5),panel.background = element_rect(fill = "white"),panel.grid = element_blank(),panel.border = element_rect(color = "black", size = 1, fill = NA),
+        panel.spacing = unit(0.5, "lines")) 
+
+# GSEA
+library(tibble)
+gsea_human= Buffering_human_rank[,c("transcript", "TE_RNA_cor_value_nond")]
+gsea_human=setNames(gsea_human$TE_RNA_cor_value_nond,gsea_human$transcript)
+gsea_human= sort(gsea_human, decreasing = TRUE)
+
+
+
+gsea_go_human <- gseGO(geneList = gsea_human,
+                 OrgDb = org.Hs.eg.db,
+                 ont = "BP",
+                 keyType = "SYMBOL",
+                 seed=TRUE)
+
+head(gsea_go_human)
+enrichplot::gseaplot2(gsea_go_human, geneSetID = c(1:2))
+# if using Ribo -RNA
+gsea_human= Buffering_human_rank[,c("transcript", "Ribo_RNA_cor_value_nond")]
+gsea_human=setNames(gsea_human$Ribo_RNA_cor_value_nond,gsea_human$transcript)
+gsea_human= sort(gsea_human, decreasing = TRUE)
+
+
+
+gsea_go_human <- gseGO(geneList = gsea_human,
+                       OrgDb = org.Hs.eg.db,
+                       ont = "BP",
+                       keyType = "SYMBOL",
+                       seed=TRUE)
+
+head(gsea_go_human)
+enrichplot::gseaplot2(gsea_go_human, geneSetID = c(1:3))
+# for mouse
+# for mouse
+TB1_genes_mouse= Buffering_mouse_rank[Buffering_mouse_rank$Buffering=="TB_score=1",]
+TB2_genes_mouse= Buffering_mouse_rank[Buffering_mouse_rank$Buffering=="TB_score=2",]
+other_genes_mouse= Buffering_mouse_rank[Buffering_mouse_rank$Buffering=="TB_score=3",]
+
+
+
+ego=enrichGO(
+  gene     = TB1_genes_mouse$transcript,       # DE or interesting list
+  # full set of expressed genes
+  OrgDb    = org.Hs.eg.db,
+  universe = Buffering_mouse_rank$transcript,
+  keyType  = "SYMBOL",
+  ont      = "BP",
+  pAdjustMethod = "BH",
+  readable      = TRUE,qvalueCutoff  = 0.05,
+)
+ego
+
+dotplot(ego, showCategory = 10)
+
+s_ego<-clusterProfiler::simplify(ego)
+s_ego
+
+s_ego_mouse <- as_tibble(s_ego)
+
+
+mouse_GO_plot=dotplot(s_ego,showCategory=20,label_format=70)+
+  scale_size_continuous(range=c(1, 7))+
+  theme(axis.text = element_text(size = 12),
+        axis.title = element_text(size = 12),
+        plot.title = element_text(hjust = 0.5),panel.background = element_rect(fill = "white"),panel.grid = element_blank(),panel.border = element_rect(color = "black", size = 1, fill = NA),
+        panel.spacing = unit(0.5, "lines")) 
+
+mouse_GO_plot
+
+
+
+
+#
+GO_plot= plot_grid(human_GO_plot, mouse_GO_plot,  ncol=1 , label_size =12, rel_widths = c(1, 1),  # Adjust widths
+          rel_heights = c(1, 1))
+
+ggsave("Sup_Figure2b.pdf", plot =GO_plot, path = path, width = 10, height = 10,dpi=300)
+#write.csv(s_ego_human, "./s_ego_human.csv")
+#write.csv(s_ego_mouse, "./s_ego_mouse.csv")
+
+
+# RBP analysis
+
+library(ggsci)
+library(viridis)
+library(readxl)
+library(MatchIt)
+library(scales)
+library(ggrepel)
+
+# Import the RNA CLR file
+rna_clr <- read.csv(file.path(WORKING_DIR, "RNA_clr.csv"))
+
+# Format the RNA_CLR file to match Dr.Ian's Code
+# Turn into a matrix
+rna_clr <- as.matrix(rna_clr)
+
+# Make the row names the transcript names
+row.names(rna_clr) <- rna_clr[, "transcript"]
+
+# Remove the excess columns
+rna_clr <- rna_clr[, -c(1,2)]
+
+# Coerce values from character into numeric
+mode(rna_clr) <- "numeric"
+
+#-------------------------------------
+
+# Format the TE CLR Table into a Matrix
+
+#-------------------------------------
+
+# Import the RNA CLR file
+te_clr <- read.csv(file.path(WORKING_DIR, "TE_GBM_clr.csv"))
+
+# Format the TE_CLR file to match Dr.Ian's Code
+# Turn into a matrix
+te_clr <- as.matrix(te_clr)
+
+# Make the row names the transcript names
+row.names(te_clr) <- te_clr[, "transcript"]
+
+# Remove the excess columns
+te_clr <- te_clr[, -c(1,2)]
+
+# Coerce values from character into numeric
+mode(te_clr) <- "numeric"
+
+#-------------------------------------
+
+# RNA CLR for RBP's Only
+
+#-------------------------------------
+
+RBP_list <- as.data.table(read_xlsx(file.path(WORKING_DIR, "41580_2018_BFnrm2017130_MOESM121_ESM.xlsx"), sheet=2))
+RBP_list<- RBP_list[!is.na(UNIQUE), UNIQUE]
+
+rna_clr_rbp <- rna_clr[
+  rownames(rna_clr)%in%RBP_list,]
+
+RBP_list_indata <- RBP_list[RBP_list%in%rownames(rna_clr)]
+
+#-------------------------------------
+
+# Run Correlation Calculation Between RBP <-> All Genes | Only Run Once to Create (rbp_rna_gene_te_cor.txt)
+
+#-------------------------------------
+
+# Initialize the counter OUTSIDE the function
+count <- 1
+
+get_cor_vec <- function(x, rna_mat = rna_clr_rbp, te_mat = te_clr) {
+  print(paste("Processing:", x, "+", count))
+  rbp_expr <- rna_mat[rownames(rna_mat) == x]
+  cor_vec <- apply(te_mat, 1, cor, rbp_expr) # Each RBP is correlated with each row, this assume GSM Codes are correctly in Order
+  
+  # Increment the global counter
+  count <<- count + 1  # Use <<- to modify the global variable
+  return(cor_vec)
+}
+
+# Takes the name of an RBP "x"
+# rna_mat is a matrix of RBP expressions (RNA)
+# TE matrix is TE of genes
+
+# Run Pearson correlation
+# Correlates every RBP in that list to every gene's TE
+human_rbp_rna_te_cor_dt <- lapply(RBP_list_indata, get_cor_vec)
+
+# Convert to DT
+human_rbp_rna_te_cor_dt<- as.data.table(human_rbp_rna_te_cor_dt)
+
+# Add RBP Names
+names(human_rbp_rna_te_cor_dt)<- RBP_list_indata
+
+# Add Gene Names in a column (At back of table)
+human_rbp_rna_te_cor_dt[,Gene:=rownames(te_clr)]
+
+#-------------------------------------
+
+# Run Significance Calculation Between RBP <-> All Genes | Only Run Once to Create (rbp_rna_gene_te_sig.txt)
+
+#-------------------------------------
+
+# Initialize the counter OUTSIDE the function
+count <- 1
+
+get_cor_vec_significance<- function(x, rna_mat=rna_clr_rbp, te_mat=te_clr){
+  print(paste("Processing:", x, "+", count))
+  rbp_expr <- rna_mat[rownames(rna_mat)==x]
+  cor_sig <- apply(te_mat, 1, cor_test_sig, rbp_expr)
+  count <<- count + 1  # Use <<- to modify the global variable
+  return(cor_sig)
+}
+
+cor_test_sig<- function(x, y){
+  test_res<- cor.test(x, y)
+  res<- test_res$p.value
+  return(res)
+}
+
+# Similar to last, but runs significant test instead (P-Values)
+# Checks to see if the TE of genes and RNA expression of RBP genes are
+#     significantly correlated
+# Produces a matrix of P-values
+
+
+# Run correlation sig tests
+human_rbp_rna_te_cor_sig_dt <- lapply(RBP_list_indata, get_cor_vec_significance)
+
+# Convert to DT
+human_rbp_rna_te_cor_sig_dt <- as.data.table(human_rbp_rna_te_cor_sig_dt)
+
+# Add RBP Names
+names(human_rbp_rna_te_cor_sig_dt)<- RBP_list_indata
+
+# Add Gene Names in a column (At back of table)
+human_rbp_rna_te_cor_sig_dt[,Gene:=rownames(te_clr)]
+
+#-------------------------------------
+
+# Configure Correlation Value Matrix
+
+#-------------------------------------
+
+# Shapes the data table from wide to long
+# Gene | RBP | Pearson Value
+human_rbp_rna_te_cor_melt_dt <- melt(
+  data = human_rbp_rna_te_cor_dt, 
+  id.vars = "Gene", 
+  variable.name = "RBP", 
+  value.name = "Pearson_correlation"
+)
+
+# Adds the RBP:Gene format to the melt table
+human_rbp_rna_te_cor_melt_dt[,RBP_gene:=paste(RBP, Gene, sep=":")]
+
+#-------------------------------------
+
+# Configure Significant Value Matrix
+
+#-------------------------------------
+
+# Columns are the GSM Code, Rows are now given the Gene Name
+human_rbp_rna_te_cor_sig_mat <- as.matrix(human_rbp_rna_te_cor_sig_dt[,-"Gene"])
+rownames(human_rbp_rna_te_cor_sig_mat)<- human_rbp_rna_te_cor_sig_dt[,Gene]
+human_rbp_rna_te_cor_sig_data <- as.vector(human_rbp_rna_te_cor_sig_mat)
+
+# Performs similar to melt but for the P-Values
+human_rbp_rna_te_cor_sig_mat_adj_dt <- data.table(
+  p_adjust = human_rbp_rna_te_cor_sig_data, 
+  # Changed from human_rbp_rna_te_cor_sig_mat_adj
+  
+  RBP = rep(RBP_list_indata, each = nrow
+            (te_clr)),
+  Gene = rep(rownames(te_clr), times = length
+             (RBP_list_indata))
+)
+
+# Creates new column called RBP_gene which will be
+# RBP:Gene
+human_rbp_rna_te_cor_sig_mat_adj_dt[,RBP_gene:=paste(RBP, Gene, sep=":")]
+
+#-------------------------------------
+
+# Apply Bonferonni Correction
+
+#-------------------------------------
+
+# Applying Bonferonni Correction (More conservative)
+rbp_count <- as.numeric(length(RBP_list_indata))
+gene_count <- as.numeric(nrow(human_rbp_rna_te_cor_dt))
+rbp_gene_cor_thresh <- 0.05 / (rbp_count * gene_count)
+
+# Filters for significant values that are less than p < 0.05
+human_rbp_rna_te_cor_sig_mat_adj_filt_dt <- human_rbp_rna_te_cor_sig_mat_adj_dt[p_adjust<rbp_gene_cor_thresh]
+
+# Left Join Signicant P Values to their Correlation Value
+human_rbp_rna_te_cor_sig_mat_adj_filt_merge_dt<- merge(
+  human_rbp_rna_te_cor_sig_mat_adj_filt_dt, 
+  human_rbp_rna_te_cor_melt_dt[,.(RBP_gene, Pearson_correlation)], by="RBP_gene")
+
+# RBP:Gene | True if Positive Correlation, False if Not | Same for NEgative
+rbp_gene_sig_data <- 
+  human_rbp_rna_te_cor_sig_mat_adj_filt_merge_dt |>
+  mutate(
+    isPositive = Pearson_correlation >= 0.5,
+    isNegative = Pearson_correlation <= -0.5
+  )
+
+#-------------------------------------
+
+# Fisher Analysis
+
+#-------------------------------------
+
+# Remove RBP correlating to itself (Removes around 800 rows)
+rbp_gene_sig_data <- rbp_gene_sig_data |>
+  filter(Gene != RBP)
+
+# Pull out list of RBPs
+rbp_list <- rbp_gene_sig_data |> 
+  pull(RBP) |> 
+  unique()
+
+# Import Buffered Genes
+buffer_dt <- fread(file.path(WORKING_DIR, "Buffering_human_rank.csv"), sep=",")
+buffer_dt <- buffer_dt[V1 <= 500, .(transcript)]
+
+#-------------------------------------
+
+# Fisher Test Negative Correlation Function
+
+#-------------------------------------
+
+fisher_test_negative <- function(rbp_of_interest, rbp_gene_table = rbp_gene_sig_data, buffered_genes = buffer_dt) {
+  print(paste("Processing:", rbp_of_interest, "+", count))
+  
+  rbp_data <- rbp_gene_table |>
+    filter(RBP == rbp_of_interest)
+  
+  # 1,1: number of negatively correlated genes in buffer
+  neg_in_buffer <- rbp_data |>
+    filter(isNegative == TRUE & Gene %in% buffer_dt$transcript) |>
+    nrow() + 1
+  
+  # 1,2: buffer size (500) - neg_in_buffer
+  notneg_in_buffer <- 500 - neg_in_buffer + 2
+  
+  # 2,1: number of negatively correlated genes not in buffer
+  neg_notbuffer <- rbp_data |>
+    filter(isNegative == TRUE, !Gene %in% buffer_dt$transcript) |>
+    nrow() + 1
+  
+  # 2,2: total background size (8433 - 500 - 1 RBP) - neg_notbuffer
+  notneg_notbuffer <- 7932 - neg_notbuffer + 2
+  
+  # Build 2x2 matrix
+  rbp_mat <- matrix(
+    c(neg_in_buffer, notneg_in_buffer,
+      neg_notbuffer, notneg_notbuffer),
+    nrow = 2,
+    byrow = TRUE,
+    dimnames = list(
+      c("Buffer", "Non-buffer"),
+      c("Negcorr", "Notnegcorr")
+    )
+  )
+  
+  fisher_res <- fisher.test(rbp_mat)
+  sig_value <- fisher_res$p.value
+  odd_value <- fisher_res$estimate
+  
+  # Increment the global counter
+  count <<- count + 1  # Use <<- to modify the global variable
+  
+  return(list(sig_value, odd_value))
+}
+
+#-------------------------------------
+
+# Fisher Test Negative Correlation Implementation
+
+#-------------------------------------
+
+count <- 1
+
+# Initialize empty vectors
+rbp_p_value_vec <- c()
+rbp_odd_ratio_vec <- c()
+
+# Loop over list
+for (rbp in rbp_list) {
+  rbp_values <- fisher_test_negative(rbp)        # call your function
+  rbp_p_value_vec <- c(rbp_p_value_vec, unname(unlist(rbp_values[1])))   # add p-value
+  rbp_odd_ratio_vec <- c(rbp_odd_ratio_vec, unname(unlist(rbp_values[2]))) # add odds ratio
+}
+
+# Renaming
+rbp_p_value_neg_df <- data.frame(
+  RBP = rbp_list,
+  p_value = rbp_p_value_vec,
+  odd_ratio = rbp_odd_ratio_vec
+)
+
+rbp_p_value_neg_df_arranged <- rbp_p_value_neg_df |>
+  arrange(p_value)
+
+#-------------------------------------
+
+# Fisher Test Positive Correlation Function
+
+#-------------------------------------
+
+fisher_test_positive <- function(rbp_of_interest, rbp_gene_table = rbp_gene_sig_data, buffered_genes = buffer_dt) {
+  print(paste("Processing:", rbp_of_interest, "+", count))
+  
+  rbp_data <- rbp_gene_table |>
+    filter(RBP == rbp_of_interest)
+  
+  # 1,1: number of positively correlated genes in buffer
+  pos_in_buffer <- rbp_data |>
+    filter(isPositive == TRUE & Gene %in% buffer_dt$transcript) |>
+    nrow() + 1
+  
+  # 1,2: buffer size (500) - pos_in_buffer
+  notpos_in_buffer <- 500 - pos_in_buffer + 2
+  
+  # 2,1: number of positively correlated genes not in buffer
+  pos_notbuffer <- rbp_data |>
+    filter(isPositive == TRUE, !Gene %in% buffer_dt$transcript) |>
+    nrow() + 1
+  
+  # 2,2: total background size (8433 - 500 - 1 RBP) - pos_notbuffer
+  notpos_notbuffer <- 7932 - pos_notbuffer + 2
+  
+  # Build 2x2 matrix
+  rbp_mat <- matrix(
+    c(pos_in_buffer, notpos_in_buffer,
+      pos_notbuffer, notpos_notbuffer),
+    nrow = 2,
+    byrow = TRUE,
+    dimnames = list(
+      c("Buffer", "Non-buffer"),
+      c("Poscorr", "Notposcorr")
+    )
+  )
+  
+  fisher_res <- fisher.test(rbp_mat)
+  sig_value <- fisher_res$p.value
+  odd_value <- fisher_res$estimate
+  
+  # Increment the global counter
+  count <<- count + 1  # Use <<- to modify the global variable
+  
+  return(list(sig_value, odd_value))
+}
+
+#-------------------------------------
+
+# Fisher Test Positive Correlation Implementation
+
+#-------------------------------------
+
+count <- 1
+
+# Initialize empty vectors
+rbp_p_value_vec <- c()
+rbp_odd_ratio_vec <- c()
+
+# Loop over list
+for (rbp in rbp_list) {
+  rbp_values <- fisher_test_positive(rbp)        # call your function
+  rbp_p_value_vec <- c(rbp_p_value_vec, unname(unlist(rbp_values[1])))   # add p-value
+  rbp_odd_ratio_vec <- c(rbp_odd_ratio_vec, unname(unlist(rbp_values[2]))) # add odds ratio
+}
+
+rbp_p_value_pos_df <- data.frame(
+  RBP = rbp_list,
+  p_value = rbp_p_value_vec,
+  odd_ratio = rbp_odd_ratio_vec
+)
+
+rbp_p_value_pos_df_arranged <- rbp_p_value_pos_df |>
+  arrange(p_value)
+
+#-------------------------------------
+
+# Negative Visualization
+
+#-------------------------------------
+
+# The value if same enrichment in buffered gene and control gene
+odds_ratio_enrichment_threshold <- 15.81382
+
+rbp_gene_sig_neg_data <- rbp_p_value_neg_df_arranged |>
+  mutate(
+    log_p_value = -log10(p_value),
+    log_odds_ratio = log2(odd_ratio),
+    isBuffered  = RBP %in% buffer_dt$transcript,
+    isBuffered  = factor(isBuffered, levels = c(TRUE, FALSE))  # TRUE first, then FALSE
+  ) |>
+  select(RBP, p_value, log_p_value, odd_ratio, log_odds_ratio, isBuffered)
+
+# Bonferonni Correction
+p_value_threshold <- 0.05 / nrow(rbp_p_value_neg_df_arranged)
+
+
+neg_scatterplot <- ggplot(rbp_gene_sig_neg_data, 
+                          aes(x = log_odds_ratio, y = log_p_value)) +
+  
+  # Scatter points with conditional color - NO OUTLINE
+  geom_point(aes(color = isBuffered),   # Use COLOR instead of FILL
+             alpha = 1, 
+             size = 3, 
+             shape = 19) +              # Solid shape without outline
+  
+  scale_color_manual(values = c("FALSE" = "blue", 
+                                "TRUE"  = "red")) +
+  
+  # Manually set axis limits and breaks
+  scale_x_continuous(
+    limits = c(0, 10),                 # Adjust range as needed
+    breaks = seq(0, 10, by = 2)        # Tick marks
+  ) +
+  scale_y_continuous(
+    limits = c(0, 320),                 # Adjust range as needed
+    breaks = seq(0, 320, by = 50)        # Tick marks
+  ) +   
+  
+  # Threshold lines
+  geom_vline(xintercept = log2(odds_ratio_enrichment_threshold), linetype = "dashed", color = "darkgreen", size = 0.8) +
+  geom_hline(yintercept = -log10(p_value_threshold), linetype = "dashed", color = "darkgreen", size = 0.8) +
+  
+  # Add labels for selected points
+  geom_text_repel(
+    data = subset(rbp_gene_sig_neg_data, log_odds_ratio > 8.2 | log_p_value > 293.7), 
+    nudge_x = 0.4,
+    nudge_y = 0.4,
+    aes(label = RBP),
+    size = 3,
+    box.padding = 0.3,
+    point.padding = 1e-06,
+    max.overlaps = 20,
+    min.segment.length = 0.01
+  ) +
+  # Add labels for selected points
+  geom_text_repel(
+    data = subset(rbp_gene_sig_neg_data, log_odds_ratio < log2(odds_ratio_enrichment_threshold) & log_p_value > -log10(p_value_threshold) & RBP %in% c("DDX6", "LIN7C")), 
+    nudge_x = -0.7,
+    nudge_y = 10,
+    aes(label = RBP),
+    size = 3,
+    box.padding = 0.2,
+    point.padding = 1e-06,
+    max.overlaps = 20,
+    min.segment.length = 0.01
+  ) +
+  
+  geom_text_repel(
+    data = subset(rbp_gene_sig_neg_data, log_odds_ratio < log2(odds_ratio_enrichment_threshold) & log_p_value > -log10(p_value_threshold) & RBP %in% c("RBM15")), 
+    nudge_x = -0.2,
+    nudge_y = 17,
+    aes(label = RBP),
+    size = 3,
+    box.padding = 0.2,
+    point.padding = 1e-06,
+    max.overlaps = 20,
+    min.segment.length = 0.01
+  ) +
+  
+  
+  
+  # Customize theme elements
+  theme(
+    axis.text = element_text(size = 12),
+    axis.title = element_text(size = 12),
+    plot.title = element_text(hjust = 0.5),
+    panel.background = element_rect(fill = "white"),
+    panel.grid = element_blank(),
+    panel.border = element_rect(color = "black", size = 1, fill = NA),
+    panel.spacing = unit(0.5, "lines"),
+    legend.position = "top"
+  ) +
+  
+  # Labels and title
+  labs(
+    title = "RBP Gene Significance Analysis | Negative Correlation",
+    x = "Odds Ratio",
+    y = "Negative Log P-Value",
+    color = "Buffered"  # Changed from 'fill' to 'color'
+  )
+
+
+# Display the plot
+print(neg_scatterplot)
+
+#-------------------------------------
+
+# Positive Visualization
+
+#-------------------------------------
+
+rbp_gene_sig_pos_data <- rbp_p_value_pos_df_arranged |>
+  mutate(
+    log_p_value = -log10(p_value),
+    log_odds_ratio = log2(odd_ratio),
+    isBuffered  = RBP %in% buffer_dt$transcript,
+    isBuffered  = factor(isBuffered, levels = c(TRUE, FALSE))  # TRUE first, then FALSE
+  ) |>
+  select(RBP, p_value, log_p_value, odd_ratio, log_odds_ratio, isBuffered)
+
+pos_scatterplot <- ggplot(rbp_gene_sig_pos_data, 
+                          aes(x = log_odds_ratio, y = log_p_value)) +
+  
+  # Scatter points with conditional color - NO OUTLINE
+  geom_point(aes(color = isBuffered),   # Use COLOR instead of FILL
+             alpha = 1, 
+             size = 3, 
+             shape = 19) +
+  
+  scale_color_manual(values = c("FALSE" = "blue", 
+                                "TRUE"  = "red")) +
+  
+  # Threshold lines
+  geom_vline(xintercept = log2(odds_ratio_enrichment_threshold), linetype = "dashed", color = "darkgreen", size = 0.8) +
+  geom_hline(yintercept = -log10(p_value_threshold), linetype = "dashed", color = "darkgreen", size = 0.8) +
+  
+  # Manually set axis limits and breaks
+  scale_x_continuous(
+    limits = c(0, 10),                 # Adjust range as needed
+    breaks = seq(0, 10, by = 2)        # Tick marks
+  ) +
+  scale_y_continuous(
+    limits = c(0, 65),                 # Adjust range as needed
+    breaks = seq(0, 65, by = 10)        # Tick marks
+  ) +
+  
+  # Add labels for selected points
+  geom_text_repel(
+    data = subset(rbp_gene_sig_pos_data, log_odds_ratio > 7 | log_p_value > 13), 
+    nudge_x = 0.5,
+    aes(label = RBP),
+    size = 3,
+    box.padding = 0.5,
+    point.padding = 1e-06,
+    max.overlaps = 10,
+    min.segment.length = 0.01
+  ) +
+  
+  geom_text_repel(
+    data = subset(rbp_gene_sig_pos_data, log_odds_ratio < log2(odds_ratio_enrichment_threshold) & log_p_value > -log10(p_value_threshold)), 
+    nudge_x = -0.7,
+    nudge_y = 2,
+    aes(label = RBP),
+    size = 3,
+    box.padding = 0.2,
+    point.padding = 1e-06,
+    max.overlaps = 20,
+    min.segment.length = 0.01
+  ) +
+  
+  # Customize theme elements
+  theme(
+    axis.text = element_text(size = 12),
+    axis.title = element_text(size = 12),
+    plot.title = element_text(hjust = 0.5),
+    panel.background = element_rect(fill = "white"),
+    panel.grid = element_blank(),
+    panel.border = element_rect(color = "black", size = 1, fill = NA),
+    panel.spacing = unit(0.5, "lines"),
+    legend.position = "top"
+  ) +
+  
+  # Labels and title
+  labs(
+    title = "RBP Gene Significance Analysis | Positive Correlation",
+    x = "Odds Ratio",
+    y = "Negative Log P-Value",
+    color = "Buffered"  # Changed from 'fill' to 'color'
+  )
+
+# Display the plot
+print(pos_scatterplot)
