@@ -1,4 +1,4 @@
-# Translation-buffering repository has R scripts used for manuscript entiltled "Translational buffering as a mechanism to tune gene expression"
+# Translation-buffering repository has R scripts used for manuscript entiltled "Translational buffering tunes gene expression in mice and humans"
 
 #Imputation_final 
 This R script has code to proceess RNA and Ribo read counts to calculate TE at sample level from human
